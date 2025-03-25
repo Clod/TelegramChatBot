@@ -36,6 +36,9 @@ WEBHOOK_SSL_PRIV = "/etc/letsencrypt/live/precarina.com.ar/privkey.pem"     # Pr
 app = Flask(__name__)  # Create a Flask web application
 bot = telebot.TeleBot(TOKEN)  # Create a Telegram bot instance with our token
 
+# Dictionary to store user sessions
+user_sessions = {}  # Key: user_id, Value: dict with user state and data
+
 # Function to create the main menu with interactive buttons
 def generate_main_menu():
     # Create a new inline keyboard markup (buttons that appear in the message)
@@ -71,6 +74,15 @@ def generate_submenu(menu_id):
 # This decorator tells the bot to call this function when users send these commands
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
+    # Get the user ID to track this specific user's session
+    user_id = message.from_user.id
+    
+    # Initialize or reset the user's session
+    user_sessions[user_id] = {
+        'state': 'main_menu',
+        'data': {}
+    }
+    
     # Reply to the user with a welcome message and show the main menu
     bot.reply_to(
         message,  # The original message from the user
@@ -82,11 +94,24 @@ def send_welcome(message):
 # This decorator tells the bot to call this function when users click any button
 @bot.callback_query_handler(func=lambda call: True)  # The lambda function means "handle all callbacks"
 def handle_callback_query(call):
+    # Get the user ID to ensure we're handling the correct user's session
+    user_id = call.from_user.id
+    
+    # Ensure the user has a session, create one if not
+    if user_id not in user_sessions:
+        user_sessions[user_id] = {
+            'state': 'main_menu',
+            'data': {}
+        }
+    
     # Check which button was clicked by examining the callback_data
     
     if call.data == "menu1":
         # User clicked the "Menu 1" button
-        logger.info("Menu 1 was selected")  # Log this action
+        logger.info(f"User {user_id}: Menu 1 was selected")  # Log this action with user ID
+        
+        # Update the user's state
+        user_sessions[user_id]['state'] = 'menu1'
         
         # Edit the original message to show the submenu for Menu 1
         bot.edit_message_text(
@@ -98,7 +123,10 @@ def handle_callback_query(call):
     
     elif call.data == "menu2":
         # User clicked the "Menu 2" button
-        logger.info("Menu 2 was selected")
+        logger.info(f"User {user_id}: Menu 2 was selected")
+        
+        # Update the user's state
+        user_sessions[user_id]['state'] = 'menu2'
         
         # Edit the original message to show the submenu for Menu 2
         bot.edit_message_text(
@@ -110,6 +138,10 @@ def handle_callback_query(call):
     
     elif call.data == "main_menu":
         # User clicked the "Back to Main Menu" button
+        logger.info(f"User {user_id}: Returned to main menu")
+        
+        # Update the user's state
+        user_sessions[user_id]['state'] = 'main_menu'
         
         # Edit the message to show the main menu again
         bot.edit_message_text(
@@ -123,7 +155,10 @@ def handle_callback_query(call):
     
     elif call.data == "menu1_sub1":
         # User clicked "Menu 1 Subitem 1"
-        logger.info("Processing Menu 1 - Subitem 1 (API call)")
+        logger.info(f"User {user_id}: Processing Menu 1 - Subitem 1 (API call)")
+        
+        # Store the selected subitem in the user's session
+        user_sessions[user_id]['data']['selected_item'] = 'menu1_sub1'
         
         # Show a notification to the user that we're processing their request
         bot.answer_callback_query(call.id, "Processing Menu 1 - Subitem 1...")
@@ -131,19 +166,31 @@ def handle_callback_query(call):
         
     elif call.data == "menu1_sub2":
         # User clicked "Menu 1 Subitem 2"
-        logger.info("Processing Menu 1 - Subitem 2 (API call)")
+        logger.info(f"User {user_id}: Processing Menu 1 - Subitem 2 (API call)")
+        
+        # Store the selected subitem in the user's session
+        user_sessions[user_id]['data']['selected_item'] = 'menu1_sub2'
+        
         bot.answer_callback_query(call.id, "Processing Menu 1 - Subitem 2...")
         # Placeholder for API call
         
     elif call.data == "menu2_sub1":
         # User clicked "Menu 2 Subitem 1"
-        logger.info("Processing Menu 2 - Subitem 1 (API call)")
+        logger.info(f"User {user_id}: Processing Menu 2 - Subitem 1 (API call)")
+        
+        # Store the selected subitem in the user's session
+        user_sessions[user_id]['data']['selected_item'] = 'menu2_sub1'
+        
         bot.answer_callback_query(call.id, "Processing Menu 2 - Subitem 1...")
         # Placeholder for API call
         
     elif call.data == "menu2_sub2":
         # User clicked "Menu 2 Subitem 2"
-        logger.info("Processing Menu 2 - Subitem 2 (API call)")
+        logger.info(f"User {user_id}: Processing Menu 2 - Subitem 2 (API call)")
+        
+        # Store the selected subitem in the user's session
+        user_sessions[user_id]['data']['selected_item'] = 'menu2_sub2'
+        
         bot.answer_callback_query(call.id, "Processing Menu 2 - Subitem 2...")
         # Placeholder for API call
 
@@ -222,6 +269,15 @@ def check_updates():
     
     # Convert the updates to dictionaries and return as JSON
     return jsonify([u.to_dict() for u in updates])
+
+# Route to view current user sessions (for debugging)
+@app.route('/user_sessions')
+def view_user_sessions():
+    # Return a sanitized version of user sessions (remove sensitive data if any)
+    return jsonify({
+        'active_users': len(user_sessions),
+        'sessions': {str(user_id): session['state'] for user_id, session in user_sessions.items()}
+    })
 
 # Health check endpoint to verify the bot is working correctly
 @app.route('/health')
