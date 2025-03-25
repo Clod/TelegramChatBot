@@ -120,10 +120,9 @@ def index():
 @app.route('/set_webhook')
 def set_webhook():
     bot.remove_webhook()
-    bot.set_webhook(
-        url=WEBHOOK_URL,
-        certificate=open(WEBHOOK_SSL_CERT, 'r')
-    )
+    # Don't upload the certificate to Telegram, just use the URL
+    # This assumes your SSL certificate is properly set up with a trusted CA
+    bot.set_webhook(url=WEBHOOK_URL)
     return 'Webhook set!'
 
 @app.route('/webhook_info')
@@ -144,7 +143,7 @@ def check_updates():
     bot.remove_webhook()
     updates = bot.get_updates()
     # Re-set the webhook before returning
-    bot.set_webhook(url=WEBHOOK_URL, certificate=open(WEBHOOK_SSL_CERT, 'r'))
+    bot.set_webhook(url=WEBHOOK_URL)
     return jsonify([u.to_dict() for u in updates])
 
 @app.route('/health')
@@ -159,11 +158,8 @@ if __name__ == '__main__':
     # Remove any existing webhook first
     bot.remove_webhook()
     
-    # Set the webhook
-    bot.set_webhook(
-        url=WEBHOOK_URL,
-        certificate=open(WEBHOOK_SSL_CERT, 'r')
-    )
+    # Set the webhook without uploading the certificate
+    bot.set_webhook(url=WEBHOOK_URL)
     
     # Start the Flask app
     app.run(
