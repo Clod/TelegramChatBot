@@ -252,6 +252,59 @@ def update_user_preference(user_id, preference_name, preference_value):
     conn.close()
     return True
 
+def get_user_data_summary(user_id):
+    """Get a summary of all data stored for a user"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    summary = {}
+    
+    # Get user profile
+    cursor.execute("""
+    SELECT u.*, p.language, p.notifications, p.theme
+    FROM users u
+    LEFT JOIN user_preferences p ON u.user_id = p.user_id
+    WHERE u.user_id = ?
+    """, (user_id,))
+    user = cursor.fetchone()
+    
+    if user:
+        summary['profile'] = dict(user)
+        
+        # Get message count
+        cursor.execute("SELECT COUNT(*) as count FROM user_messages WHERE user_id = ?", (user_id,))
+        message_count = cursor.fetchone()
+        summary['message_count'] = message_count['count'] if message_count else 0
+        
+        # Get interaction count
+        cursor.execute("SELECT COUNT(*) as count FROM user_interactions WHERE user_id = ?", (user_id,))
+        interaction_count = cursor.fetchone()
+        summary['interaction_count'] = interaction_count['count'] if interaction_count else 0
+        
+        # Get interaction types
+        cursor.execute("""
+        SELECT action_type, COUNT(*) as count
+        FROM user_interactions
+        WHERE user_id = ?
+        GROUP BY action_type
+        ORDER BY count DESC
+        """, (user_id,))
+        summary['interaction_types'] = [dict(row) for row in cursor.fetchall()]
+        
+        # Get recent messages (last 5)
+        cursor.execute("""
+        SELECT message_text, timestamp
+        FROM user_messages
+        WHERE user_id = ?
+        ORDER BY timestamp DESC
+        LIMIT 5
+        """, (user_id,))
+        summary['recent_messages'] = [dict(row) for row in cursor.fetchall()]
+    
+    conn.close()
+    return summary
+
 def delete_user_data(user_id):
     """Delete all data associated with a user from the database"""
     conn = sqlite3.connect(DB_PATH)
@@ -306,7 +359,11 @@ def generate_main_menu():
         # callback_data is what the bot receives when a user clicks the button
     )
     
-    # Add delete data button in a new row
+    # Add data management buttons in new rows
+    markup.add(
+        InlineKeyboardButton("📊 View My Data", callback_data="view_my_data")  # View data button
+    )
+    
     markup.add(
         InlineKeyboardButton("🗑️ Delete My Data", callback_data="delete_my_data")  # Delete data button
     )
@@ -478,7 +535,72 @@ def handle_callback_query(call):
     
     # Check which button was clicked by examining the callback_data
     
-    if call.data == "delete_my_data":
+    if call.data == "view_my_data":
+        # User clicked the "View My Data" button
+        logger.info(f"User {user_id}: Requested to view their data")
+        
+        # Get user data summary
+        user_data = get_user_data_summary(user_id)
+        
+        if user_data and 'profile' in user_data:
+            # Format the data into a readable message
+            profile = user_data['profile']
+            
+            # Create a formatted message with the user's data
+            data_text = "📊 *Your Data Summary*\n\n"
+            
+            # User profile
+            data_text += "*Profile Information:*\n"
+            data_text += f"• Username: @{profile.get('username') or 'Not set'}\n"
+            data_text += f"• Name: {profile.get('first_name', '')} {profile.get('last_name', '')}\n"
+            data_text += f"• Language: {profile.get('language_code', 'Not set')}\n"
+            data_text += f"• First joined: {profile.get('created_at', 'Unknown')}\n"
+            data_text += f"• Last activity: {profile.get('last_activity', 'Unknown')}\n\n"
+            
+            # Preferences
+            data_text += "*Your Preferences:*\n"
+            data_text += f"• Bot language: {profile.get('language', 'en')}\n"
+            data_text += f"• Notifications: {'Enabled' if profile.get('notifications') else 'Disabled'}\n"
+            data_text += f"• Theme: {profile.get('theme', 'default')}\n\n"
+            
+            # Statistics
+            data_text += "*Your Activity:*\n"
+            data_text += f"• Total messages: {user_data.get('message_count', 0)}\n"
+            data_text += f"• Total interactions: {user_data.get('interaction_count', 0)}\n\n"
+            
+            # Recent messages
+            if user_data.get('recent_messages'):
+                data_text += "*Your Recent Messages:*\n"
+                for i, msg in enumerate(user_data['recent_messages'], 1):
+                    # Truncate long messages
+                    message_text = msg['message_text']
+                    if len(message_text) > 30:
+                        message_text = message_text[:27] + "..."
+                    
+                    data_text += f"{i}. {message_text}\n"
+            
+            # Create a button to return to main menu
+            markup = InlineKeyboardMarkup()
+            markup.add(InlineKeyboardButton("Back to Main Menu", callback_data="main_menu"))
+            
+            # Edit the message to show the user data
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=data_text,
+                reply_markup=markup,
+                parse_mode="Markdown"
+            )
+        else:
+            # No data found
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="No data found for your account.",
+                reply_markup=generate_main_menu()
+            )
+    
+    elif call.data == "delete_my_data":
         # User clicked the "Delete My Data" button
         logger.info(f"User {user_id}: Requested data deletion")
         
