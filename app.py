@@ -252,18 +252,65 @@ def update_user_preference(user_id, preference_name, preference_value):
     conn.close()
     return True
 
+def delete_user_data(user_id):
+    """Delete all data associated with a user from the database"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    try:
+        # Start a transaction
+        cursor.execute("BEGIN TRANSACTION")
+        
+        # Delete user messages
+        cursor.execute("DELETE FROM user_messages WHERE user_id = ?", (user_id,))
+        messages_deleted = cursor.rowcount
+        
+        # Delete user interactions
+        cursor.execute("DELETE FROM user_interactions WHERE user_id = ?", (user_id,))
+        interactions_deleted = cursor.rowcount
+        
+        # Delete user preferences
+        cursor.execute("DELETE FROM user_preferences WHERE user_id = ?", (user_id,))
+        
+        # Delete user record
+        cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+        
+        # Commit the transaction
+        conn.commit()
+        
+        # If the user has an active session, remove it
+        if user_id in user_sessions:
+            del user_sessions[user_id]
+        
+        logger.info(f"Deleted user data for user_id {user_id}: {messages_deleted} messages, {interactions_deleted} interactions")
+        return True, messages_deleted, interactions_deleted
+        
+    except Exception as e:
+        # If anything goes wrong, roll back the transaction
+        conn.rollback()
+        logger.error(f"Error deleting user data: {str(e)}")
+        return False, 0, 0
+    finally:
+        conn.close()
+
 # Function to create the main menu with interactive buttons
 def generate_main_menu():
     # Create a new inline keyboard markup (buttons that appear in the message)
     markup = InlineKeyboardMarkup()
     markup.row_width = 2  # Set how many buttons to show in each row
     
-    # Add two buttons to the markup
+    # Add buttons to the markup
     markup.add(
         InlineKeyboardButton("Menu 1", callback_data="menu1"),  # First button
         InlineKeyboardButton("Menu 2", callback_data="menu2")   # Second button
         # callback_data is what the bot receives when a user clicks the button
     )
+    
+    # Add delete data button in a new row
+    markup.add(
+        InlineKeyboardButton("🗑️ Delete My Data", callback_data="delete_my_data")  # Delete data button
+    )
+    
     return markup  # Return the created menu
 
 # Function to create submenus based on which main menu item was selected
@@ -349,6 +396,18 @@ def handle_text(message):
         # In a real bot, you might want to process the message or respond differently
         pass
 
+# Function to create a confirmation menu for data deletion
+def generate_delete_confirmation_menu():
+    markup = InlineKeyboardMarkup()
+    markup.row_width = 2
+    
+    markup.add(
+        InlineKeyboardButton("✅ Yes, Delete My Data", callback_data="confirm_delete"),
+        InlineKeyboardButton("❌ No, Keep My Data", callback_data="cancel_delete")
+    )
+    
+    return markup
+
 # Handler for button clicks (callback queries)
 # This decorator tells the bot to call this function when users click any button
 @bot.callback_query_handler(func=lambda call: True)  # The lambda function means "handle all callbacks"
@@ -376,7 +435,63 @@ def handle_callback_query(call):
     
     # Check which button was clicked by examining the callback_data
     
-    if call.data == "menu1":
+    if call.data == "delete_my_data":
+        # User clicked the "Delete My Data" button
+        logger.info(f"User {user_id}: Requested data deletion")
+        
+        # Update the user's state
+        user_sessions[user_id]['state'] = 'delete_confirmation'
+        
+        # Show confirmation dialog
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="⚠️ Are you sure you want to delete all your data? This action cannot be undone.",
+            reply_markup=generate_delete_confirmation_menu()
+        )
+    
+    elif call.data == "confirm_delete":
+        # User confirmed data deletion
+        logger.info(f"User {user_id}: Confirmed data deletion")
+        
+        # Perform the deletion
+        success, messages_deleted, interactions_deleted = delete_user_data(user_id)
+        
+        if success:
+            # Notify the user of successful deletion
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=f"✅ Your data has been deleted successfully.\n\n"
+                     f"• {messages_deleted} messages\n"
+                     f"• {interactions_deleted} interactions\n\n"
+                     f"You can start using the bot again with /start."
+            )
+        else:
+            # Notify the user of failure
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="❌ There was an error deleting your data. Please try again later.",
+                reply_markup=generate_main_menu()
+            )
+    
+    elif call.data == "cancel_delete":
+        # User canceled data deletion
+        logger.info(f"User {user_id}: Canceled data deletion")
+        
+        # Update the user's state back to main menu
+        user_sessions[user_id]['state'] = 'main_menu'
+        
+        # Return to main menu
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="Operation canceled. Your data has been kept.",
+            reply_markup=generate_main_menu()
+        )
+    
+    elif call.data == "menu1":
         # User clicked the "Menu 1" button
         logger.info(f"User {user_id}: Menu 1 was selected")  # Log this action with user ID
         
