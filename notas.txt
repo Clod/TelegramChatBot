@@ -1,0 +1,14 @@
+python3.11 -m venv telegram_bot_wh
+source telegram_bot_wh/bin/activate
+
+pip install flask
+pip install pyTelegramBotAPI
+pip install dotenv
+
+Para que pueda acceder a los certificados.
+sudo python app.py
+
+Ojo, pero parece que a veces tarda en responder al /start y parece que estuviera
+muerto pero después responde todo junto como si encolara los /start
+
+
