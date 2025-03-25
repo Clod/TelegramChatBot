@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime
 from flask import Flask, request, jsonify
 import telebot
 from dotenv import load_dotenv
@@ -102,9 +103,15 @@ def handle_callback_query(call):
 
 @app.route('/' + TOKEN, methods=['POST'])
 def webhook():
-    update = telebot.types.Update.de_json(request.stream.read().decode('utf-8'))
-    bot.process_new_updates([update])
-    return '', 200
+    try:
+        json_string = request.stream.read().decode('utf-8')
+        logger.info(f"Received update: {json_string}")
+        update = telebot.types.Update.de_json(json_string)
+        bot.process_new_updates([update])
+        return '', 200
+    except Exception as e:
+        logger.error(f"Error processing update: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/')
 def index():
@@ -118,6 +125,35 @@ def set_webhook():
         certificate=open(WEBHOOK_SSL_CERT, 'r')
     )
     return 'Webhook set!'
+
+@app.route('/webhook_info')
+def webhook_info():
+    info = bot.get_webhook_info()
+    return jsonify({
+        'url': info.url,
+        'has_custom_certificate': info.has_custom_certificate,
+        'pending_update_count': info.pending_update_count,
+        'last_error_date': info.last_error_date,
+        'last_error_message': info.last_error_message,
+        'max_connections': info.max_connections,
+        'ip_address': info.ip_address
+    })
+
+@app.route('/check_updates')
+def check_updates():
+    bot.remove_webhook()
+    updates = bot.get_updates()
+    # Re-set the webhook before returning
+    bot.set_webhook(url=WEBHOOK_URL, certificate=open(WEBHOOK_SSL_CERT, 'r'))
+    return jsonify([u.to_dict() for u in updates])
+
+@app.route('/health')
+def health_check():
+    return jsonify({
+        'status': 'ok',
+        'timestamp': datetime.now().isoformat(),
+        'bot_info': bot.get_me().to_dict()
+    })
 
 if __name__ == '__main__':
     # Remove any existing webhook first
