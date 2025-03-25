@@ -87,6 +87,22 @@ def init_db():
     )
     ''')
     
+    # Create user_messages table to store messages sent by users
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        chat_id INTEGER,
+        message_id INTEGER,
+        message_text TEXT,
+        message_type TEXT,
+        has_media BOOLEAN DEFAULT 0,
+        media_type TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (user_id)
+    )
+    ''')
+    
     conn.commit()
     conn.close()
     logger.info("Database initialized successfully")
@@ -149,6 +165,36 @@ def log_interaction(user_id, action_type, action_data=None):
     
     conn.commit()
     conn.close()
+
+def save_message(message):
+    """Save a user message to the database"""
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    message_id = message.message_id
+    message_text = message.text
+    
+    # Determine message type
+    if message.content_type == 'text':
+        message_type = 'text'
+        has_media = False
+        media_type = None
+    else:
+        message_type = message.content_type
+        has_media = True
+        media_type = message.content_type
+    
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+    INSERT INTO user_messages (user_id, chat_id, message_id, message_text, message_type, has_media, media_type)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (user_id, chat_id, message_id, message_text, message_type, has_media, media_type))
+    
+    conn.commit()
+    conn.close()
+    
+    logger.info(f"Saved message from user {user_id}: {message_text[:50]}...")
 
 def get_user_preferences(user_id):
     """Get user preferences from the database"""
@@ -248,6 +294,9 @@ def send_welcome(message):
     # Save user information to database with chat_id
     save_user(message.from_user, chat_id)
     
+    # Save the message to the database
+    save_message(message)
+    
     # Log this interaction
     command = message.text.split()[0].replace('/', '')
     log_interaction(user_id, f"command_{command}")
@@ -272,6 +321,33 @@ def send_welcome(message):
         welcome_text,  # Text to send
         reply_markup=generate_main_menu()  # Attach the main menu buttons
     )
+
+# Handler for text messages
+@bot.message_handler(func=lambda message: True, content_types=['text'])
+def handle_text(message):
+    # Get the user ID
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    
+    # Save user information to database
+    save_user(message.from_user, chat_id)
+    
+    # Save the message to the database
+    save_message(message)
+    
+    # Log this interaction
+    log_interaction(user_id, "text_message")
+    
+    # If we're not handling this message with a specific command handler,
+    # we can add default behavior here
+    if message.text.startswith('/'):
+        # It's a command we don't recognize
+        bot.reply_to(message, "Sorry, I don't understand that command.")
+    else:
+        # It's a regular message
+        # For now, just acknowledge receipt
+        # In a real bot, you might want to process the message or respond differently
+        pass
 
 # Handler for button clicks (callback queries)
 # This decorator tells the bot to call this function when users click any button
@@ -503,6 +579,47 @@ def view_db_users():
         logger.error(f"Error retrieving users: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
+# Route to view user messages
+@app.route('/user_messages/<int:user_id>')
+def view_user_messages(user_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get user details
+        cursor.execute("""
+        SELECT u.*, p.language, p.notifications, p.theme
+        FROM users u
+        LEFT JOIN user_preferences p ON u.user_id = p.user_id
+        WHERE u.user_id = ?
+        """, (user_id,))
+        user = dict(cursor.fetchone() or {})
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get user messages
+        cursor.execute("""
+        SELECT * FROM user_messages 
+        WHERE user_id = ? 
+        ORDER BY timestamp DESC
+        LIMIT 100
+        """, (user_id,))
+        
+        messages = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'user': user,
+            'messages': messages,
+            'total_messages': len(messages)
+        })
+    except Exception as e:
+        logger.error(f"Error retrieving user messages: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
 # Route to view user interactions
 @app.route('/user_interactions/<int:user_id>')
 def view_user_interactions(user_id):
@@ -605,13 +722,39 @@ def update_preference(user_id):
 # Health check endpoint to verify the bot is working correctly
 @app.route('/health')
 def health_check():
-    return jsonify({
-        'status': 'ok',  # Simple status indicator
-        'timestamp': datetime.now().isoformat(),  # Current time
-        'bot_info': bot.get_me().to_dict(),  # Information about the bot from Telegram
-        'db_status': 'ok' if os.path.exists(DB_PATH) else 'missing',
-        'active_users': len(user_sessions)
-    })
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Get counts
+        cursor.execute("SELECT COUNT(*) FROM users")
+        user_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM user_messages")
+        message_count = cursor.fetchone()[0]
+        
+        cursor.execute("SELECT COUNT(*) FROM user_interactions")
+        interaction_count = cursor.fetchone()[0]
+        
+        conn.close()
+        
+        return jsonify({
+            'status': 'ok',  # Simple status indicator
+            'timestamp': datetime.now().isoformat(),  # Current time
+            'bot_info': bot.get_me().to_dict(),  # Information about the bot from Telegram
+            'db_status': 'ok' if os.path.exists(DB_PATH) else 'missing',
+            'active_users': len(user_sessions),
+            'total_users': user_count,
+            'total_messages': message_count,
+            'total_interactions': interaction_count
+        })
+    except Exception as e:
+        logger.error(f"Error in health check: {str(e)}")
+        return jsonify({
+            'status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
 # This code only runs if the script is executed directly (not imported)
 if __name__ == '__main__':
