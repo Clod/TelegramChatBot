@@ -369,6 +369,27 @@ def send_welcome(message):
         reply_markup=generate_main_menu()  # Attach the main menu buttons
     )
 
+# Function to get user's message history
+def get_user_message_history(user_id, limit=10):
+    """Get the message history for a specific user"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    # Get user messages ordered by timestamp (newest first)
+    cursor.execute("""
+    SELECT message_text, timestamp 
+    FROM user_messages 
+    WHERE user_id = ? AND message_type = 'text'
+    ORDER BY timestamp DESC
+    LIMIT ?
+    """, (user_id, limit))
+    
+    messages = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    
+    return messages
+
 # Handler for text messages
 @bot.message_handler(func=lambda message: True, content_types=['text'])
 def handle_text(message):
@@ -391,10 +412,32 @@ def handle_text(message):
         # It's a command we don't recognize
         bot.reply_to(message, "Sorry, I don't understand that command.")
     else:
-        # It's a regular message
-        # For now, just acknowledge receipt
-        # In a real bot, you might want to process the message or respond differently
-        pass
+        # Get the user's message history
+        message_history = get_user_message_history(user_id, limit=10)
+        
+        # Format the message history
+        if message_history:
+            # Create a formatted message with the user's message history
+            history_text = "📝 Your message history:\n\n"
+            
+            # Skip the most recent message (the one just sent)
+            for i, msg in enumerate(message_history[1:], 1):
+                # Format the timestamp
+                timestamp = datetime.fromisoformat(msg['timestamp'].replace('Z', '+00:00'))
+                formatted_time = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                
+                # Add the message to the history text
+                history_text += f"{i}. [{formatted_time}] {msg['message_text']}\n"
+            
+            # If there are no previous messages (only the current one)
+            if len(message_history) <= 1:
+                history_text += "No previous messages found."
+                
+            # Send the message history back to the user
+            bot.reply_to(message, history_text)
+        else:
+            # This should not happen as we just saved the current message
+            bot.reply_to(message, "No message history found.")
 
 # Function to create a confirmation menu for data deletion
 def generate_delete_confirmation_menu():
