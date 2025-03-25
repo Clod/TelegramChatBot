@@ -5,6 +5,8 @@
 # Aider files                                                                                                                                                                                                                                        
 .aider*    
 
+bot_users.db
+
 # Python 
 telegram_bot_wh                                                                                                                                                                                                                                            
 __pycache__/                                                                                                                                                                                                                                         
