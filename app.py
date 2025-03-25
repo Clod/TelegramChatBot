@@ -470,7 +470,8 @@ def handle_text(message):
         bot.reply_to(message, "Sorry, I don't understand that command.")
     else:
         # Get the user's message history
-        message_history = get_user_message_history(user_id, limit=10)
+        message_history = get_user_message_history(user_id, limit=10) # Descomentar para que conteste con la history
+        # message_history = [] 
         
         # Format the message history
         if message_history:
