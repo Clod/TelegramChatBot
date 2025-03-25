@@ -57,6 +57,7 @@ def init_db():
         last_name TEXT,
         language_code TEXT,
         is_bot BOOLEAN,
+        chat_id INTEGER,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
@@ -74,6 +75,18 @@ def init_db():
     )
     ''')
     
+    # Create user_preferences table to store user settings
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_preferences (
+        user_id INTEGER PRIMARY KEY,
+        language TEXT DEFAULT 'en',
+        notifications BOOLEAN DEFAULT 1,
+        theme TEXT DEFAULT 'default',
+        last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (user_id)
+    )
+    ''')
+    
     conn.commit()
     conn.close()
     logger.info("Database initialized successfully")
@@ -81,7 +94,7 @@ def init_db():
 # Initialize the database when the app starts
 init_db()
 
-def save_user(user):
+def save_user(user, chat_id=None):
     """Save or update user information in the database"""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -92,17 +105,34 @@ def save_user(user):
     
     if exists:
         # Update existing user's last activity
-        cursor.execute("""
-        UPDATE users 
-        SET username = ?, first_name = ?, last_name = ?, language_code = ?, last_activity = CURRENT_TIMESTAMP 
-        WHERE user_id = ?
-        """, (user.username, user.first_name, user.last_name, user.language_code, user.id))
+        if chat_id:
+            cursor.execute("""
+            UPDATE users 
+            SET username = ?, first_name = ?, last_name = ?, language_code = ?, 
+                chat_id = ?, last_activity = CURRENT_TIMESTAMP 
+            WHERE user_id = ?
+            """, (user.username, user.first_name, user.last_name, user.language_code, 
+                  chat_id, user.id))
+        else:
+            cursor.execute("""
+            UPDATE users 
+            SET username = ?, first_name = ?, last_name = ?, language_code = ?, 
+                last_activity = CURRENT_TIMESTAMP 
+            WHERE user_id = ?
+            """, (user.username, user.first_name, user.last_name, user.language_code, user.id))
     else:
         # Insert new user
         cursor.execute("""
-        INSERT INTO users (user_id, username, first_name, last_name, language_code, is_bot)
-        VALUES (?, ?, ?, ?, ?, ?)
-        """, (user.id, user.username, user.first_name, user.last_name, user.language_code, user.is_bot))
+        INSERT INTO users (user_id, username, first_name, last_name, language_code, is_bot, chat_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (user.id, user.username, user.first_name, user.last_name, 
+              user.language_code, user.is_bot, chat_id))
+        
+        # Initialize user preferences for new users
+        cursor.execute("""
+        INSERT INTO user_preferences (user_id)
+        VALUES (?)
+        """, (user.id,))
     
     conn.commit()
     conn.close()
@@ -119,6 +149,62 @@ def log_interaction(user_id, action_type, action_data=None):
     
     conn.commit()
     conn.close()
+
+def get_user_preferences(user_id):
+    """Get user preferences from the database"""
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT * FROM user_preferences WHERE user_id = ?", (user_id,))
+    prefs = cursor.fetchone()
+    
+    conn.close()
+    
+    if prefs:
+        return dict(prefs)
+    else:
+        # Return default preferences if not found
+        return {
+            'user_id': user_id,
+            'language': 'en',
+            'notifications': True,
+            'theme': 'default'
+        }
+
+def update_user_preference(user_id, preference_name, preference_value):
+    """Update a specific user preference"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if user has preferences record
+    cursor.execute("SELECT user_id FROM user_preferences WHERE user_id = ?", (user_id,))
+    exists = cursor.fetchone()
+    
+    if exists:
+        # Update the specific preference
+        cursor.execute(f"""
+        UPDATE user_preferences 
+        SET {preference_name} = ?, last_updated = CURRENT_TIMESTAMP 
+        WHERE user_id = ?
+        """, (preference_value, user_id))
+    else:
+        # Create default preferences with the specified value
+        defaults = {
+            'language': 'en',
+            'notifications': True,
+            'theme': 'default'
+        }
+        defaults[preference_name] = preference_value
+        
+        cursor.execute("""
+        INSERT INTO user_preferences (user_id, language, notifications, theme)
+        VALUES (?, ?, ?, ?)
+        """, (user_id, defaults['language'], defaults['notifications'], defaults['theme']))
+    
+    conn.commit()
+    conn.close()
+    return True
 
 # Function to create the main menu with interactive buttons
 def generate_main_menu():
@@ -157,24 +243,33 @@ def generate_submenu(menu_id):
 def send_welcome(message):
     # Get the user ID to track this specific user's session
     user_id = message.from_user.id
+    chat_id = message.chat.id
     
-    # Save user information to database
-    save_user(message.from_user)
+    # Save user information to database with chat_id
+    save_user(message.from_user, chat_id)
     
     # Log this interaction
     command = message.text.split()[0].replace('/', '')
     log_interaction(user_id, f"command_{command}")
     
+    # Get user preferences
+    prefs = get_user_preferences(user_id)
+    
     # Initialize or reset the user's session
     user_sessions[user_id] = {
         'state': 'main_menu',
-        'data': {}
+        'data': {},
+        'preferences': prefs
     }
     
     # Reply to the user with a welcome message and show the main menu
+    welcome_text = "Welcome to the bot! Choose an option:"
+    if prefs['language'] == 'es':
+        welcome_text = "¡Bienvenido al bot! Elige una opción:"
+    
     bot.reply_to(
         message,  # The original message from the user
-        "Welcome to the bot! Choose an option:",  # Text to send
+        welcome_text,  # Text to send
         reply_markup=generate_main_menu()  # Attach the main menu buttons
     )
 
@@ -184,18 +279,23 @@ def send_welcome(message):
 def handle_callback_query(call):
     # Get the user ID to ensure we're handling the correct user's session
     user_id = call.from_user.id
+    chat_id = call.message.chat.id
     
-    # Save user information to database
-    save_user(call.from_user)
+    # Save user information to database with chat_id
+    save_user(call.from_user, chat_id)
     
     # Log this interaction
     log_interaction(user_id, "button_click", call.data)
     
     # Ensure the user has a session, create one if not
     if user_id not in user_sessions:
+        # Get user preferences
+        prefs = get_user_preferences(user_id)
+        
         user_sessions[user_id] = {
             'state': 'main_menu',
-            'data': {}
+            'data': {},
+            'preferences': prefs
         }
     
     # Check which button was clicked by examining the callback_data
@@ -381,13 +481,15 @@ def view_db_users():
         conn.row_factory = sqlite3.Row  # This enables column access by name
         cursor = conn.cursor()
         
-        # Get all users
+        # Get all users with their preferences
         cursor.execute("""
-        SELECT user_id, username, first_name, last_name, 
-               created_at, last_activity,
-               (SELECT COUNT(*) FROM user_interactions WHERE user_id = users.user_id) as interaction_count
-        FROM users
-        ORDER BY last_activity DESC
+        SELECT u.user_id, u.username, u.first_name, u.last_name, 
+               u.chat_id, u.created_at, u.last_activity,
+               p.language, p.notifications, p.theme,
+               (SELECT COUNT(*) FROM user_interactions WHERE user_id = u.user_id) as interaction_count
+        FROM users u
+        LEFT JOIN user_preferences p ON u.user_id = p.user_id
+        ORDER BY u.last_activity DESC
         """)
         
         users = [dict(row) for row in cursor.fetchall()]
@@ -409,8 +511,13 @@ def view_user_interactions(user_id):
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
-        # Get user details
-        cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+        # Get user details with preferences
+        cursor.execute("""
+        SELECT u.*, p.language, p.notifications, p.theme
+        FROM users u
+        LEFT JOIN user_preferences p ON u.user_id = p.user_id
+        WHERE u.user_id = ?
+        """, (user_id,))
         user = dict(cursor.fetchone() or {})
         
         # Get user interactions
@@ -423,6 +530,17 @@ def view_user_interactions(user_id):
         
         interactions = [dict(row) for row in cursor.fetchall()]
         
+        # Get interaction statistics
+        cursor.execute("""
+        SELECT action_type, COUNT(*) as count
+        FROM user_interactions
+        WHERE user_id = ?
+        GROUP BY action_type
+        ORDER BY count DESC
+        """, (user_id,))
+        
+        stats = [dict(row) for row in cursor.fetchall()]
+        
         conn.close()
         
         if not user:
@@ -430,11 +548,58 @@ def view_user_interactions(user_id):
             
         return jsonify({
             'user': user,
+            'preferences': {
+                'language': user.get('language', 'en'),
+                'notifications': bool(user.get('notifications', True)),
+                'theme': user.get('theme', 'default')
+            },
             'interactions': interactions,
-            'total_interactions': len(interactions)
+            'total_interactions': len(interactions),
+            'interaction_stats': stats
         })
     except Exception as e:
         logger.error(f"Error retrieving user interactions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Route to update user preferences
+@app.route('/update_preference/<int:user_id>', methods=['POST'])
+def update_preference(user_id):
+    try:
+        data = request.json
+        if not data or 'preference_name' not in data or 'preference_value' not in data:
+            return jsonify({'error': 'Missing required fields'}), 400
+        
+        preference_name = data['preference_name']
+        preference_value = data['preference_value']
+        
+        # Validate preference name
+        valid_preferences = ['language', 'notifications', 'theme']
+        if preference_name not in valid_preferences:
+            return jsonify({'error': f'Invalid preference name. Must be one of: {valid_preferences}'}), 400
+        
+        # Update the preference
+        success = update_user_preference(user_id, preference_name, preference_value)
+        
+        if success:
+            # Update session if user is active
+            if user_id in user_sessions:
+                if 'preferences' not in user_sessions[user_id]:
+                    user_sessions[user_id]['preferences'] = get_user_preferences(user_id)
+                else:
+                    user_sessions[user_id]['preferences'][preference_name] = preference_value
+            
+            return jsonify({
+                'success': True,
+                'message': f'Preference {preference_name} updated successfully',
+                'user_id': user_id,
+                'preference_name': preference_name,
+                'preference_value': preference_value
+            })
+        else:
+            return jsonify({'error': 'Failed to update preference'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error updating preference: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Health check endpoint to verify the bot is working correctly
@@ -443,7 +608,9 @@ def health_check():
     return jsonify({
         'status': 'ok',  # Simple status indicator
         'timestamp': datetime.now().isoformat(),  # Current time
-        'bot_info': bot.get_me().to_dict()  # Information about the bot from Telegram
+        'bot_info': bot.get_me().to_dict(),  # Information about the bot from Telegram
+        'db_status': 'ok' if os.path.exists(DB_PATH) else 'missing',
+        'active_users': len(user_sessions)
     })
 
 # This code only runs if the script is executed directly (not imported)
