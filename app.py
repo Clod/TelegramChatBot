@@ -1,6 +1,7 @@
 # Import necessary libraries
 import logging  # For logging messages and errors
 import os  # For accessing environment variables and file paths
+import sqlite3  # For SQLite database operations
 from datetime import datetime  # For timestamps in health checks
 from flask import Flask, request, jsonify  # Web framework for creating API endpoints
 import telebot  # Python Telegram Bot API wrapper
@@ -38,6 +39,86 @@ bot = telebot.TeleBot(TOKEN)  # Create a Telegram bot instance with our token
 
 # Dictionary to store user sessions
 user_sessions = {}  # Key: user_id, Value: dict with user state and data
+
+# Database setup
+DB_PATH = 'bot_users.db'
+
+def init_db():
+    """Initialize the SQLite database with required tables"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Create users table if it doesn't exist
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS users (
+        user_id INTEGER PRIMARY KEY,
+        username TEXT,
+        first_name TEXT,
+        last_name TEXT,
+        language_code TEXT,
+        is_bot BOOLEAN,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    ''')
+    
+    # Create user_interactions table to track user actions
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS user_interactions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        action_type TEXT,
+        action_data TEXT,
+        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (user_id)
+    )
+    ''')
+    
+    conn.commit()
+    conn.close()
+    logger.info("Database initialized successfully")
+
+# Initialize the database when the app starts
+init_db()
+
+def save_user(user):
+    """Save or update user information in the database"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    # Check if user already exists
+    cursor.execute("SELECT user_id FROM users WHERE user_id = ?", (user.id,))
+    exists = cursor.fetchone()
+    
+    if exists:
+        # Update existing user's last activity
+        cursor.execute("""
+        UPDATE users 
+        SET username = ?, first_name = ?, last_name = ?, language_code = ?, last_activity = CURRENT_TIMESTAMP 
+        WHERE user_id = ?
+        """, (user.username, user.first_name, user.last_name, user.language_code, user.id))
+    else:
+        # Insert new user
+        cursor.execute("""
+        INSERT INTO users (user_id, username, first_name, last_name, language_code, is_bot)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """, (user.id, user.username, user.first_name, user.last_name, user.language_code, user.is_bot))
+    
+    conn.commit()
+    conn.close()
+
+def log_interaction(user_id, action_type, action_data=None):
+    """Log user interaction in the database"""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+    INSERT INTO user_interactions (user_id, action_type, action_data)
+    VALUES (?, ?, ?)
+    """, (user_id, action_type, action_data))
+    
+    conn.commit()
+    conn.close()
 
 # Function to create the main menu with interactive buttons
 def generate_main_menu():
@@ -77,6 +158,13 @@ def send_welcome(message):
     # Get the user ID to track this specific user's session
     user_id = message.from_user.id
     
+    # Save user information to database
+    save_user(message.from_user)
+    
+    # Log this interaction
+    command = message.text.split()[0].replace('/', '')
+    log_interaction(user_id, f"command_{command}")
+    
     # Initialize or reset the user's session
     user_sessions[user_id] = {
         'state': 'main_menu',
@@ -96,6 +184,12 @@ def send_welcome(message):
 def handle_callback_query(call):
     # Get the user ID to ensure we're handling the correct user's session
     user_id = call.from_user.id
+    
+    # Save user information to database
+    save_user(call.from_user)
+    
+    # Log this interaction
+    log_interaction(user_id, "button_click", call.data)
     
     # Ensure the user has a session, create one if not
     if user_id not in user_sessions:
@@ -278,6 +372,70 @@ def view_user_sessions():
         'active_users': len(user_sessions),
         'sessions': {str(user_id): session['state'] for user_id, session in user_sessions.items()}
     })
+
+# Route to view database users
+@app.route('/db_users')
+def view_db_users():
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row  # This enables column access by name
+        cursor = conn.cursor()
+        
+        # Get all users
+        cursor.execute("""
+        SELECT user_id, username, first_name, last_name, 
+               created_at, last_activity,
+               (SELECT COUNT(*) FROM user_interactions WHERE user_id = users.user_id) as interaction_count
+        FROM users
+        ORDER BY last_activity DESC
+        """)
+        
+        users = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        return jsonify({
+            'total_users': len(users),
+            'users': users
+        })
+    except Exception as e:
+        logger.error(f"Error retrieving users: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Route to view user interactions
+@app.route('/user_interactions/<int:user_id>')
+def view_user_interactions(user_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get user details
+        cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+        user = dict(cursor.fetchone() or {})
+        
+        # Get user interactions
+        cursor.execute("""
+        SELECT * FROM user_interactions 
+        WHERE user_id = ? 
+        ORDER BY timestamp DESC
+        LIMIT 100
+        """, (user_id,))
+        
+        interactions = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+            
+        return jsonify({
+            'user': user,
+            'interactions': interactions,
+            'total_interactions': len(interactions)
+        })
+    except Exception as e:
+        logger.error(f"Error retrieving user interactions: {str(e)}")
+        return jsonify({'error': str(e)}), 500
 
 # Health check endpoint to verify the bot is working correctly
 @app.route('/health')
