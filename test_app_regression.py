@@ -561,7 +561,8 @@ class AppRegressionTest(unittest.TestCase):
         try:
             # Send a POST request to the webhook endpoint
             response = client.post(f'/{app.TOKEN}', data=update_data)
-            
+            print(f"Response status code: {response.status_code}")
+            print(f"Response data: {response.data}")  # Print the response body
             # Assert response status code
             self.assertEqual(response.status_code, 200)
             
