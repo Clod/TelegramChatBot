@@ -8,6 +8,12 @@ import telebot  # Python Telegram Bot API wrapper
 from dotenv import load_dotenv  # For loading environment variables from .env file
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton  # For creating interactive buttons
 
+
+# Load environment variables from .env file
+# This is a security best practice to avoid hardcoding sensitive information
+load_dotenv()
+
+
 # Configure logging to track what's happening in our application
 # This helps with debugging and monitoring
 logging.basicConfig(
@@ -16,9 +22,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)  # Create a logger specific to this module
 
-# Load environment variables from .env file
-# This is a security best practice to avoid hardcoding sensitive information
-load_dotenv()
+# Get DEBUG_MODE from environmet variables
+DEBUG_MODE_STR = os.environ.get("DEBUG_MODE", "False").lower()
+DEBUG_MODE = DEBUG_MODE_STR == "true"
 
 # Get the Telegram Bot Token from environment variables
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
@@ -469,9 +475,11 @@ def handle_text(message):
         # It's a command we don't recognize
         bot.reply_to(message, "Sorry, I don't understand that command.")
     else:
-        # Get the user's message history
-        message_history = get_user_message_history(user_id, limit=10) # Descomentar para que conteste con la history
-        # message_history = [] 
+        if (DEBUG_MODE == True):
+            # Get the user's message history
+            message_history = get_user_message_history(user_id, limit=10) # Descomentar para que conteste con la history
+        else:
+            message_history = []
         
         # Format the message history
         if message_history:
