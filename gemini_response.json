@@ -6,7 +6,7 @@
                     "role": "model",
                     "parts": [
                         {
-                            "text": "```"
+                            "text": "full"
                         }
                     ]
                 }
@@ -16,8 +16,8 @@
             "trafficType": "ON_DEMAND"
         },
         "modelVersion": "gemini-2.0-flash-lite",
-        "createTime": "2025-03-26T19:25:07.400639Z",
-        "responseId": "k1TkZ_-5GJPWhMIPtOWZkQ4"
+        "createTime": "2025-03-26T20:30:52.306929Z",
+        "responseId": "_GPkZ_HdEoKCqsMPlsOWgQs"
     },
     {
         "candidates": [
@@ -26,7 +26,7 @@
                     "role": "model",
                     "parts": [
                         {
-                            "text": "json\n{\n  \"full_name\": \"LUIGI CADORNA"
+                            "text": "_name=LUIGI CADORNA|date_of_birth=8"
                         }
                     ]
                 }
@@ -36,8 +36,8 @@
             "trafficType": "ON_DEMAND"
         },
         "modelVersion": "gemini-2.0-flash-lite",
-        "createTime": "2025-03-26T19:25:07.400639Z",
-        "responseId": "k1TkZ_-5GJPWhMIPtOWZkQ4"
+        "createTime": "2025-03-26T20:30:52.306929Z",
+        "responseId": "_GPkZ_HdEoKCqsMPlsOWgQs"
     },
     {
         "candidates": [
@@ -46,7 +46,7 @@
                     "role": "model",
                     "parts": [
                         {
-                            "text": "\",\n  \"date_of_birth\": \"8/2/196"
+                            "text": "/2/1962|age=63|email=luigi.cador"
                         }
                     ]
                 }
@@ -56,8 +56,8 @@
             "trafficType": "ON_DEMAND"
         },
         "modelVersion": "gemini-2.0-flash-lite",
-        "createTime": "2025-03-26T19:25:07.400639Z",
-        "responseId": "k1TkZ_-5GJPWhMIPtOWZkQ4"
+        "createTime": "2025-03-26T20:30:52.306929Z",
+        "responseId": "_GPkZ_HdEoKCqsMPlsOWgQs"
     },
     {
         "candidates": [
@@ -66,7 +66,7 @@
                     "role": "model",
                     "parts": [
                         {
-                            "text": "2\",\n  \"age\": 63,\n  \"email\": \"luigi.cadorna@ymail.com\",\n  \"phone_"
+                            "text": "na@ymail.com|phone_number=1234567890|city=Buenos Aires|state=JALIS"
                         }
                     ]
                 }
@@ -76,8 +76,8 @@
             "trafficType": "ON_DEMAND"
         },
         "modelVersion": "gemini-2.0-flash-lite",
-        "createTime": "2025-03-26T19:25:07.400639Z",
-        "responseId": "k1TkZ_-5GJPWhMIPtOWZkQ4"
+        "createTime": "2025-03-26T20:30:52.306929Z",
+        "responseId": "_GPkZ_HdEoKCqsMPlsOWgQs"
     },
     {
         "candidates": [
@@ -86,27 +86,7 @@
                     "role": "model",
                     "parts": [
                         {
-                            "text": "number\": \"1234567890\",\n  \"city\": \"Buenos Aires\",\n  \"state\": \"JALIS"
-                        }
-                    ]
-                }
-            }
-        ],
-        "usageMetadata": {
-            "trafficType": "ON_DEMAND"
-        },
-        "modelVersion": "gemini-2.0-flash-lite",
-        "createTime": "2025-03-26T19:25:07.400639Z",
-        "responseId": "k1TkZ_-5GJPWhMIPtOWZkQ4"
-    },
-    {
-        "candidates": [
-            {
-                "content": {
-                    "role": "model",
-                    "parts": [
-                        {
-                            "text": "CO\",\n  \"gender\": \"Male\",\n  \"preferred_contact_method\": \"Mail\"\n}\n```"
+                            "text": "CO|gender=Male|preferred_contact_method=Mail\n"
                         }
                     ]
                 },
@@ -114,14 +94,14 @@
             }
         ],
         "usageMetadata": {
-            "promptTokenCount": 1996,
-            "candidatesTokenCount": 124,
-            "totalTokenCount": 2120,
+            "promptTokenCount": 2125,
+            "candidatesTokenCount": 80,
+            "totalTokenCount": 2205,
             "trafficType": "ON_DEMAND",
             "promptTokensDetails": [
                 {
                     "modality": "TEXT",
-                    "tokenCount": 190
+                    "tokenCount": 319
                 },
                 {
                     "modality": "IMAGE",
@@ -131,12 +111,12 @@
             "candidatesTokensDetails": [
                 {
                     "modality": "TEXT",
-                    "tokenCount": 124
+                    "tokenCount": 80
                 }
             ]
         },
         "modelVersion": "gemini-2.0-flash-lite",
-        "createTime": "2025-03-26T19:25:07.400639Z",
-        "responseId": "k1TkZ_-5GJPWhMIPtOWZkQ4"
+        "createTime": "2025-03-26T20:30:52.306929Z",
+        "responseId": "_GPkZ_HdEoKCqsMPlsOWgQs"
     }
 ]
