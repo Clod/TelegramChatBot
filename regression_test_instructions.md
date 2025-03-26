@@ -15,9 +15,11 @@ Before running the tests, ensure you have the following:
 1. **Install Required Dependencies**
 
    ```bash
-   pip install flask telebot python-dotenv google-auth requests
+   pip install flask pyTelegramBotAPI python-dotenv google-auth requests
    pip install pytest pytest-cov
    ```
+
+   If you are using a virtual environment, activate it before running the tests.
 
 2. **Place Test Files**
 
