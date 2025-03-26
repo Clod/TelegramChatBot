@@ -679,13 +679,19 @@ def extract_text_from_gemini_response(gemini_response):
         if isinstance(gemini_response, dict):
             response_dict = gemini_response
         else:
-            # Try to parse the response as JSON
-            response_dict = json.loads(gemini_response)
+            # Try to parse the response as JSON if it's a string
+            if isinstance(gemini_response, str):
+                response_dict = json.loads(gemini_response)
+            else:
+                # If it's neither a dict nor a string, assume it's already the parsed object
+                response_dict = gemini_response
+        
+        # Initialize all_text to collect the text from all parts
+        all_text = ""
         
         # If it's a list of responses (like in gemini_response.json)
         if isinstance(response_dict, list):
             # Extract text from all parts in all responses
-            all_text = ""
             for response_segment in response_dict:
                 if "candidates" in response_segment and response_segment["candidates"]:
                     candidate = response_segment["candidates"][0]
@@ -696,13 +702,18 @@ def extract_text_from_gemini_response(gemini_response):
         
         # Handle single response format
         elif "candidates" in response_dict and response_dict["candidates"]:
-            all_text = ""
             candidate = response_dict["candidates"][0]
             if "content" in candidate and "parts" in candidate["content"]:
                 for part in candidate["content"]["parts"]:
                     if "text" in part:
                         all_text += part["text"]
         else:
+            logger.warning(f"Unexpected response format: {response_dict}")
+            return "No text content found in the response."
+        
+        # If we didn't extract any text, return a message
+        if not all_text:
+            logger.warning("No text was extracted from the response")
             return "No text content found in the response."
         
         # Clean up the text - remove code blocks, markdown formatting, etc.
@@ -740,7 +751,10 @@ def extract_text_from_gemini_response(gemini_response):
         
     except Exception as e:
         logger.error(f"Error extracting text from Gemini response: {str(e)}")
-        logger.error(f"Response was: {gemini_response}")
+        logger.error(f"Response type: {type(gemini_response)}")
+        if isinstance(gemini_response, (dict, list)):
+            logger.error(f"Response preview: {str(gemini_response)[:500]}")
+        traceback.print_exc()  # Print the full traceback for debugging
         return "Error processing response"
 
 def cleanup_temp_file(file_path):
