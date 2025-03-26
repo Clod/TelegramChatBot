@@ -13,6 +13,7 @@ import tempfile  # For creating temporary files
 import uuid  # For generating unique filenames
 import traceback  # For detailed error information in logs
 import base64  # For encoding images to base64
+import time    # For generating timestamp-based message IDs
 import google.auth
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleAuthRequest
@@ -675,19 +676,59 @@ def extract_text_from_gemini_response(gemini_response):
     Extract the text content from Gemini API response
     """
     try:
-        # Extract the text from the response structure
-        if gemini_response and 'candidates' in gemini_response:
-            for candidate in gemini_response['candidates']:
-                if 'content' in candidate and 'parts' in candidate['content']:
-                    for part in candidate['content']['parts']:
-                        if 'text' in part:
-                            return part['text']
+        # Check if response is already a dictionary (parsed JSON)
+        if isinstance(gemini_response, dict):
+            response_dict = gemini_response
+        else:
+            # Try to parse the response as JSON
+            response_dict = json.loads(gemini_response)
+        
+        # If it's a list of responses (like in gemini_response.json)
+        if isinstance(response_dict, list):
+            # Extract text from all parts in all responses
+            all_text = ""
+            for response_segment in response_dict:
+                if "candidates" in response_segment and response_segment["candidates"]:
+                    candidate = response_segment["candidates"][0]
+                    if "content" in candidate and "parts" in candidate["content"]:
+                        for part in candidate["content"]["parts"]:
+                            if "text" in part:
+                                all_text += part["text"]
+            
+            # Try to extract JSON from the text
+            # Look for JSON content between markers or clean up markdown formatting
+            all_text = all_text.replace("```json", "").replace("```", "").strip()
+            
+            # If the text starts with "json\n", remove it
+            if all_text.startswith("json\n"):
+                all_text = all_text[5:]
+            
+            return all_text
+        
+        # Handle single response format
+        elif "candidates" in response_dict and response_dict["candidates"]:
+            all_text = ""
+            candidate = response_dict["candidates"][0]
+            if "content" in candidate and "parts" in candidate["content"]:
+                for part in candidate["content"]["parts"]:
+                    if "text" in part:
+                        all_text += part["text"]
+            
+            # Clean up the text
+            all_text = all_text.replace("```json", "").replace("```", "").strip()
+            
+            # If the text starts with "json\n", remove it
+            if all_text.startswith("json\n"):
+                all_text = all_text[5:]
+            
+            return all_text
         
         return "No text content found in the response."
     
     except Exception as e:
         logger.error(f"Error extracting text from Gemini response: {str(e)}")
-        return "Error extracting content from the response."
+        logger.error(f"Response was: {gemini_response}")
+        return "Error processing response"
 
 def cleanup_temp_file(file_path):
     """
@@ -766,13 +807,52 @@ def handle_photo(message):
             # Extract the text content from the response
             result_text = extract_text_from_gemini_response(gemini_response)
             
-            # Send the result back to the user
-            logger.info(f"Sending image analysis result to user {user_id}")
-            bot.edit_message_text(
-                f"Here's what I see in your image:\n\n{result_text}",
-                chat_id=chat_id,
-                message_id=processing_message.message_id
-            )
+            # Create a mock message object to save the extracted JSON as a user message
+            class MockMessage:
+                def __init__(self, user_id, chat_id, text):
+                    self.from_user = type('obj', (object,), {'id': user_id})
+                    self.chat = type('obj', (object,), {'id': chat_id})
+                    self.text = text
+                    self.message_id = int(time.time())  # Use timestamp as message_id
+                    self.content_type = 'text'
+            
+            # Create and save the mock message with the extracted JSON
+            mock_message = MockMessage(user_id, chat_id, result_text)
+            save_message(mock_message)
+            
+            # Get the user's message history (including the newly saved JSON)
+            message_history = get_user_message_history(user_id, limit=10)
+            
+            # Format the message history
+            if message_history:
+                # Create a formatted message with the user's message history
+                history_text = "📝 Your message history:\n\n"
+                
+                for i, msg in enumerate(message_history, 1):
+                    # Format the timestamp
+                    timestamp = datetime.fromisoformat(msg['timestamp'].replace('Z', '+00:00'))
+                    formatted_time = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    # Add the message to the history text (truncate if too long)
+                    message_text = msg['message_text']
+                    if len(message_text) > 100:
+                        message_text = message_text[:97] + "..."
+                    
+                    history_text += f"{i}. [{formatted_time}] {message_text}\n"
+                
+                # Send the message history back to the user
+                bot.edit_message_text(
+                    history_text,
+                    chat_id=chat_id,
+                    message_id=processing_message.message_id
+                )
+            else:
+                # This should not happen as we just saved the message
+                bot.edit_message_text(
+                    "No message history found.",
+                    chat_id=chat_id,
+                    message_id=processing_message.message_id
+                )
             
             # Log successful completion
             logger.info(f"Successfully completed image processing workflow for user {user_id}")
