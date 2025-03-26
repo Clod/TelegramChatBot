@@ -47,7 +47,7 @@ if not GEMINI_API_KEY:
     logger.warning("GEMINI_API_KEY environment variable is not set. Image processing will not work.")
 
 # Gemini API endpoint
-GEMINI_API_ENDPOINT = os.environ.get("GEMINI_API_ENDPOINT", "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent")
+GEMINI_API_ENDPOINT = os.environ.get("GEMINI_API_ENDPOINT", "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models/gemini-2.0-flash-lite:streamGenerateContent")
 
 # Paths to SSL certificate files
 # These are needed for secure HTTPS communication
