@@ -546,22 +546,30 @@ class AppRegressionTest(unittest.TestCase):
         
         self.assertIsNone(user)
 
-    @patch('app.request')
-    @patch('app.jsonify')
-    def test_webhook(self, mock_jsonify, mock_request):
+    def test_webhook(self):
         """Test the webhook endpoint"""
-        # Mock request data
-        mock_request.stream.read.return_value = b'{"update_id": 123456789, "message": {"message_id": 67890, "from": {"id": 12345, "is_bot": false, "first_name": "Test", "last_name": "User", "username": "test_user", "language_code": "en"}, "chat": {"id": 12345, "first_name": "Test", "last_name": "User", "username": "test_user", "type": "private"}, "date": 1617123456, "text": "Test message"}}'
+        # Create a Flask test client
+        client = app.app.test_client()
+        
+        # Create test data
+        update_data = b'{"update_id": 123456789, "message": {"message_id": 67890, "from": {"id": 12345, "is_bot": false, "first_name": "Test", "last_name": "User", "username": "test_user", "language_code": "en"}, "chat": {"id": 12345, "first_name": "Test", "last_name": "User", "username": "test_user", "type": "private"}, "date": 1617123456, "text": "Test message"}}'
         
         # Mock bot.process_new_updates
+        original_process_updates = app.bot.process_new_updates
         app.bot.process_new_updates = MagicMock()
         
-        # Call webhook
-        response = app.webhook()
-        
-        # Assert webhook processed the update
-        self.assertEqual(response, ('', 200))
-        app.bot.process_new_updates.assert_called_once()
+        try:
+            # Send a POST request to the webhook endpoint
+            response = client.post(f'/{app.TOKEN}', data=update_data)
+            
+            # Assert response status code
+            self.assertEqual(response.status_code, 200)
+            
+            # Assert bot.process_new_updates was called
+            app.bot.process_new_updates.assert_called_once()
+        finally:
+            # Restore the original method
+            app.bot.process_new_updates = original_process_updates
 
     def test_index(self):
         """Test the index endpoint"""
