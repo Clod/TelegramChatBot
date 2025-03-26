@@ -13,6 +13,9 @@ import tempfile  # For creating temporary files
 import uuid  # For generating unique filenames
 import traceback  # For detailed error information in logs
 import base64  # For encoding images to base64
+import google.auth
+from google.oauth2 import service_account
+from google.auth.transport.requests import Request as GoogleAuthRequest
 
 
 # Load environment variables from .env file
@@ -40,14 +43,40 @@ if not TOKEN:
 # Create the webhook URL that Telegram will use to send updates to our bot
 WEBHOOK_URL = f"https://precarina.com.ar/{TOKEN}"
 
-# Get Gemini API configuration from environment variables
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-if not GEMINI_API_KEY:
-    # If the API key isn't set, log a warning - image processing won't work
-    logger.warning("GEMINI_API_KEY environment variable is not set. Image processing will not work.")
+# Path to the service account JSON file
+SERVICE_ACCOUNT_FILE = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
+if not SERVICE_ACCOUNT_FILE or not os.path.exists(SERVICE_ACCOUNT_FILE):
+    logger.warning("GOOGLE_APPLICATION_CREDENTIALS environment variable is not set or file does not exist. Image processing will not work.")
 
-# Gemini API endpoint
-GEMINI_API_ENDPOINT = os.environ.get("GEMINI_API_ENDPOINT", "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models/gemini-2.0-flash-lite:streamGenerateContent")
+# Gemini API endpoint - update to use the correct format for authenticated requests
+GEMINI_API_ENDPOINT = os.environ.get(
+    "GEMINI_API_ENDPOINT", 
+    "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models/gemini-2.0-flash-lite:generateContent"
+)
+
+# Function to get authenticated credentials
+def get_credentials():
+    """Get authenticated credentials from service account file"""
+    try:
+        if not SERVICE_ACCOUNT_FILE or not os.path.exists(SERVICE_ACCOUNT_FILE):
+            logger.error("Service account file not found")
+            return None
+            
+        # Create credentials from the service account file
+        credentials = service_account.Credentials.from_service_account_file(
+            SERVICE_ACCOUNT_FILE,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+        
+        # Refresh the credentials if needed
+        if credentials.expired:
+            credentials.refresh(GoogleAuthRequest())
+            
+        return credentials
+    except Exception as e:
+        logger.error(f"Error getting credentials: {str(e)}")
+        logger.error(traceback.format_exc())
+        return None
 
 # Paths to SSL certificate files
 # These are needed for secure HTTPS communication
@@ -521,18 +550,17 @@ def download_image_from_telegram(file_id, user_id, message_id):
 
 def process_image_with_gemini(image_path, user_id):
     """
-    Process an image using Gemini 2.0 Lite API
+    Process an image using Gemini 2.0 Lite API with service account authentication
     Returns: Parsed JSON response or None if processing failed
     """
     logger.info(f"Initiating Gemini API request for image from user_id: {user_id}")
     
-    if not GEMINI_API_KEY:
-        logger.error("Gemini API key not configured")
-        return None
-    
     try:
-        # Prepare the API request
-        api_url = f"{GEMINI_API_ENDPOINT}?key={GEMINI_API_KEY}"
+        # Get authenticated credentials
+        credentials = get_credentials()
+        if not credentials:
+            logger.error("Failed to get authenticated credentials")
+            return None
         
         # Read the image file as binary data
         with open(image_path, 'rb') as image_file:
@@ -566,10 +594,18 @@ def process_image_with_gemini(image_path, user_id):
         
         logger.info(f"Sending image data to Gemini API")
         
-        # Make the API request
+        # Get an access token from the credentials
+        auth_req = GoogleAuthRequest()
+        credentials.refresh(auth_req)
+        access_token = credentials.token
+        
+        # Make the API request with the access token
         response = requests.post(
-            api_url,
-            headers={"Content-Type": "application/json"},
+            GEMINI_API_ENDPOINT,
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {access_token}"
+            },
             data=json.dumps(payload)
         )
         
@@ -1379,6 +1415,7 @@ def health_check():
             'timestamp': datetime.now().isoformat(),  # Current time
             'bot_info': bot.get_me().to_dict(),  # Information about the bot from Telegram
             'db_status': 'ok' if os.path.exists(DB_PATH) else 'missing',
+            'service_account_status': 'ok' if (SERVICE_ACCOUNT_FILE and os.path.exists(SERVICE_ACCOUNT_FILE)) else 'missing',
             'active_users': len(user_sessions),
             'total_users': user_count,
             'total_messages': message_count,
