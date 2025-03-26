@@ -62,7 +62,7 @@ class TestExtractTextFromGeminiResponse(unittest.TestCase):
         """Test with a list of Gemini responses"""
         gemini_response = [
             {"candidates": [{"content": {"parts": [{"text": "name=test1"}]}}]},
-            {"candidates": [{"content": {"parts": [{"text": "name=test2"}]}]}}
+            {"candidates": [{"content": {"parts": [{"text": "name=test2"}]}]}]}
         ]
         extracted_text = app.extract_text_from_gemini_response(gemini_response)
         self.assertEqual(extracted_text, "name=test1name=test2")
