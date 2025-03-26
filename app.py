@@ -997,57 +997,79 @@ def handle_callback_query(call):
         # User clicked the "View My Data" button
         logger.info(f"User {user_id}: Requested to view their data")
         
-        # Get user data summary
-        user_data = get_user_data_summary(user_id)
-        
-        if user_data and 'profile' in user_data:
-            # Format the data into a readable message
-            profile = user_data['profile']
+        try:
+            # Get user data summary
+            user_data = get_user_data_summary(user_id)
             
-            # Create a formatted message with the user's data
-            data_text = "📊 *Your Data Summary*\n\n"
+            if user_data and 'profile' in user_data:
+                # Format the data into a readable message
+                profile = user_data['profile']
+                
+                # Create a formatted message with the user's data
+                data_text = "📊 Your Data Summary\n\n"
+                
+                # User profile
+                data_text += "Profile Information:\n"
+                data_text += f"• Username: @{profile.get('username') or 'Not set'}\n"
+                data_text += f"• Name: {profile.get('first_name', '')} {profile.get('last_name', '')}\n"
+                data_text += f"• Language: {profile.get('language_code', 'Not set')}\n"
+                data_text += f"• First joined: {profile.get('created_at', 'Unknown')}\n"
+                data_text += f"• Last activity: {profile.get('last_activity', 'Unknown')}\n\n"
+                
+                # Preferences
+                data_text += "Your Preferences:\n"
+                data_text += f"• Bot language: {profile.get('language', 'en')}\n"
+                data_text += f"• Notifications: {'Enabled' if profile.get('notifications') else 'Disabled'}\n"
+                data_text += f"• Theme: {profile.get('theme', 'default')}\n\n"
+                
+                # Statistics
+                data_text += "Your Activity:\n"
+                data_text += f"• Total messages: {user_data.get('message_count', 0)}\n"
+                data_text += f"• Total interactions: {user_data.get('interaction_count', 0)}\n\n"
+                
+                # Recent messages
+                if user_data.get('recent_messages'):
+                    data_text += "Your Recent Messages:\n"
+                    for i, msg in enumerate(user_data['recent_messages'], 1):
+                        # Truncate long messages
+                        message_text = msg['message_text']
+                        if message_text:  # Check if message_text is not None
+                            if len(message_text) > 30:
+                                message_text = message_text[:27] + "..."
+                            data_text += f"{i}. {message_text}\n"
+                        else:
+                            data_text += f"{i}. [Media message]\n"
+                
+                # Create a button to return to main menu
+                markup = InlineKeyboardMarkup()
+                markup.add(InlineKeyboardButton("Back to Main Menu", callback_data="main_menu"))
+                
+                # Edit the message to show the user data
+                # Remove parse_mode="Markdown" which might be causing issues
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text=data_text,
+                    reply_markup=markup
+                )
+            else:
+                # No data found
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text="No data found for your account.",
+                    reply_markup=generate_main_menu()
+                )
+        except Exception as e:
+            logger.error(f"Error displaying user data: {str(e)}")
+            logger.error(traceback.format_exc())
             
-            # User profile
-            data_text += "*Profile Information:*\n"
-            data_text += f"• Username: @{profile.get('username') or 'Not set'}\n"
-            data_text += f"• Name: {profile.get('first_name', '')} {profile.get('last_name', '')}\n"
-            data_text += f"• Language: {profile.get('language_code', 'Not set')}\n"
-            data_text += f"• First joined: {profile.get('created_at', 'Unknown')}\n"
-            data_text += f"• Last activity: {profile.get('last_activity', 'Unknown')}\n\n"
-            
-            # Preferences
-            data_text += "*Your Preferences:*\n"
-            data_text += f"• Bot language: {profile.get('language', 'en')}\n"
-            data_text += f"• Notifications: {'Enabled' if profile.get('notifications') else 'Disabled'}\n"
-            data_text += f"• Theme: {profile.get('theme', 'default')}\n\n"
-            
-            # Statistics
-            data_text += "*Your Activity:*\n"
-            data_text += f"• Total messages: {user_data.get('message_count', 0)}\n"
-            data_text += f"• Total interactions: {user_data.get('interaction_count', 0)}\n\n"
-            
-            # Recent messages
-            if user_data.get('recent_messages'):
-                data_text += "*Your Recent Messages:*\n"
-                for i, msg in enumerate(user_data['recent_messages'], 1):
-                    # Truncate long messages
-                    message_text = msg['message_text']
-                    if len(message_text) > 30:
-                        message_text = message_text[:27] + "..."
-                    
-                    data_text += f"{i}. {message_text}\n"
-            
-            # Create a button to return to main menu
-            markup = InlineKeyboardMarkup()
-            markup.add(InlineKeyboardButton("Back to Main Menu", callback_data="main_menu"))
-            
-            # Edit the message to show the user data
+            # Send a fallback message to the user
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text=data_text,
-                reply_markup=markup,
-                parse_mode="Markdown"
+                text="Sorry, there was an error retrieving your data. Please try again later.",
+                reply_markup=generate_main_menu()
             )
         else:
             # No data found
