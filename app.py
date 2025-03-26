@@ -1063,20 +1063,12 @@ def handle_callback_query(call):
         except Exception as e:
             logger.error(f"Error displaying user data: {str(e)}")
             logger.error(traceback.format_exc())
-            
+        
             # Send a fallback message to the user
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
                 text="Sorry, there was an error retrieving your data. Please try again later.",
-                reply_markup=generate_main_menu()
-            )
-        else:
-            # No data found
-            bot.edit_message_text(
-                chat_id=call.message.chat.id,
-                message_id=call.message.message_id,
-                text="No data found for your account.",
                 reply_markup=generate_main_menu()
             )
     
