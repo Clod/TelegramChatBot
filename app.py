@@ -7,6 +7,12 @@ from flask import Flask, request, jsonify  # Web framework for creating API endp
 import telebot  # Python Telegram Bot API wrapper
 from dotenv import load_dotenv  # For loading environment variables from .env file
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton  # For creating interactive buttons
+import requests  # For making HTTP requests to Gemini API
+import json  # For parsing JSON responses
+import tempfile  # For creating temporary files
+import uuid  # For generating unique filenames
+import traceback  # For detailed error information in logs
+import base64  # For encoding images to base64
 
 
 # Load environment variables from .env file
@@ -33,6 +39,15 @@ if not TOKEN:
     raise ValueError("TELEGRAM_BOT_TOKEN environment variable is not set")
 # Create the webhook URL that Telegram will use to send updates to our bot
 WEBHOOK_URL = f"https://precarina.com.ar/{TOKEN}"
+
+# Get Gemini API configuration from environment variables
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    # If the API key isn't set, log a warning - image processing won't work
+    logger.warning("GEMINI_API_KEY environment variable is not set. Image processing will not work.")
+
+# Gemini API endpoint
+GEMINI_API_ENDPOINT = os.environ.get("GEMINI_API_ENDPOINT", "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro-vision:generateContent")
 
 # Paths to SSL certificate files
 # These are needed for secure HTTPS communication
@@ -109,6 +124,19 @@ def init_db():
     )
     ''')
     
+    # Create image_processing_results table to store Gemini API responses
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS image_processing_results (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        message_id INTEGER,
+        file_id TEXT,
+        gemini_response TEXT,
+        processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users (user_id)
+    )
+    ''')
+    
     conn.commit()
     conn.close()
     logger.info("Database initialized successfully")
@@ -177,17 +205,17 @@ def save_message(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     message_id = message.message_id
-    message_text = message.text
+    message_text = message.text if message.content_type == 'text' else None
     
     # Determine message type
-    if message.content_type == 'text':
-        message_type = 'text'
-        has_media = False
-        media_type = None
-    else:
-        message_type = message.content_type
-        has_media = True
-        media_type = message.content_type
+    message_type = message.content_type
+    has_media = message.content_type != 'text'
+    media_type = message.content_type if has_media else None
+    
+    # Get file_id for photo messages
+    file_id = None
+    if message.content_type == 'photo' and message.photo:
+        file_id = message.photo[-1].file_id
     
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -200,7 +228,10 @@ def save_message(message):
     conn.commit()
     conn.close()
     
-    logger.info(f"Saved message from user {user_id}: {message_text[:50]}...")
+    if message_text:
+        logger.info(f"Saved message from user {user_id}: {message_text[:50]}...")
+    else:
+        logger.info(f"Saved {message_type} message from user {user_id}")
 
 def get_user_preferences(user_id):
     """Get user preferences from the database"""
@@ -452,6 +483,280 @@ def get_user_message_history(user_id, limit=10):
     conn.close()
     
     return messages
+
+# Image processing functions
+def download_image_from_telegram(file_id, user_id, message_id):
+    """
+    Download an image from Telegram servers using file_id
+    Returns: Path to downloaded file or None if download failed
+    """
+    logger.info(f"Starting image download process for file_id: {file_id}, user_id: {user_id}, message_id: {message_id}")
+    
+    try:
+        # Get file info from Telegram
+        file_info = bot.get_file(file_id)
+        file_path = file_info.file_path
+        
+        # Create a unique filename using uuid
+        temp_dir = tempfile.gettempdir()
+        unique_filename = f"{uuid.uuid4().hex}.jpg"
+        local_file_path = os.path.join(temp_dir, unique_filename)
+        
+        # Download the file
+        downloaded_file = bot.download_file(file_path)
+        
+        # Save the file locally
+        with open(local_file_path, 'wb') as new_file:
+            new_file.write(downloaded_file)
+        
+        file_size = os.path.getsize(local_file_path)
+        logger.info(f"Successfully downloaded image to {local_file_path} (Size: {file_size} bytes)")
+        
+        return local_file_path
+    
+    except Exception as e:
+        logger.error(f"Error downloading image: {str(e)}")
+        logger.error(traceback.format_exc())
+        return None
+
+def process_image_with_gemini(image_path, user_id):
+    """
+    Process an image using Gemini 2.0 Lite API
+    Returns: Parsed JSON response or None if processing failed
+    """
+    logger.info(f"Initiating Gemini API request for image from user_id: {user_id}")
+    
+    if not GEMINI_API_KEY:
+        logger.error("Gemini API key not configured")
+        return None
+    
+    try:
+        # Prepare the API request
+        api_url = f"{GEMINI_API_ENDPOINT}?key={GEMINI_API_KEY}"
+        
+        # Read the image file as binary data
+        with open(image_path, 'rb') as image_file:
+            image_data = image_file.read()
+        
+        # Encode image to base64
+        encoded_image = base64.b64encode(image_data).decode('utf-8')
+        
+        # Prepare the request payload
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": "Describe this image in detail"},
+                        {
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": encoded_image
+                            }
+                        }
+                    ]
+                }
+            ],
+            "generationConfig": {
+                "temperature": 0.4,
+                "topK": 32,
+                "topP": 1,
+                "maxOutputTokens": 4096
+            }
+        }
+        
+        logger.info(f"Sending image data to Gemini API")
+        
+        # Make the API request
+        response = requests.post(
+            api_url,
+            headers={"Content-Type": "application/json"},
+            data=json.dumps(payload)
+        )
+        
+        # Log the raw response
+        logger.info(f"Received raw response from Gemini API: {response.text[:500]}...")
+        
+        # Check if the request was successful
+        if response.status_code == 200:
+            logger.info("Successfully received response from Gemini API")
+            
+            # Parse the JSON response
+            logger.info("Starting JSON parsing of Gemini API response")
+            parsed_response = response.json()
+            logger.info("Successfully parsed JSON response")
+            
+            return parsed_response
+        else:
+            logger.error(f"Gemini API request failed with status code: {response.status_code}")
+            logger.error(f"Error response: {response.text}")
+            return None
+    
+    except json.JSONDecodeError as e:
+        logger.error(f"Error parsing JSON response: {str(e)}")
+        logger.error(traceback.format_exc())
+        return None
+    except Exception as e:
+        logger.error(f"Error processing image with Gemini: {str(e)}")
+        logger.error(traceback.format_exc())
+        return None
+
+def save_image_processing_result(user_id, message_id, file_id, gemini_response):
+    """
+    Save the Gemini API response to the database
+    """
+    logger.info(f"Initiating database storage for Gemini API response for user_id: {user_id}, message_id: {message_id}")
+    
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        
+        # Convert the response to a JSON string
+        gemini_response_json = json.dumps(gemini_response)
+        
+        # Insert the record
+        cursor.execute("""
+        INSERT INTO image_processing_results (user_id, message_id, file_id, gemini_response)
+        VALUES (?, ?, ?, ?)
+        """, (user_id, message_id, file_id, gemini_response_json))
+        
+        # Get the inserted record ID
+        record_id = cursor.lastrowid
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Successfully stored Gemini API response in database (record ID: {record_id})")
+        return True
+    
+    except Exception as e:
+        logger.error(f"Error saving image processing result to database: {str(e)}")
+        logger.error(traceback.format_exc())
+        return False
+
+def extract_text_from_gemini_response(gemini_response):
+    """
+    Extract the text content from Gemini API response
+    """
+    try:
+        # Extract the text from the response structure
+        if gemini_response and 'candidates' in gemini_response:
+            for candidate in gemini_response['candidates']:
+                if 'content' in candidate and 'parts' in candidate['content']:
+                    for part in candidate['content']['parts']:
+                        if 'text' in part:
+                            return part['text']
+        
+        return "No text content found in the response."
+    
+    except Exception as e:
+        logger.error(f"Error extracting text from Gemini response: {str(e)}")
+        return "Error extracting content from the response."
+
+def cleanup_temp_file(file_path):
+    """
+    Delete a temporary file
+    """
+    logger.info(f"Initiating cleanup of temporary file: {file_path}")
+    
+    try:
+        if file_path and os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Successfully deleted temporary file: {file_path}")
+            return True
+        return False
+    
+    except Exception as e:
+        logger.error(f"Error cleaning up temporary file: {str(e)}")
+        return False
+
+# Handler for photo messages
+@bot.message_handler(content_types=['photo'])
+def handle_photo(message):
+    """Handle photos sent by users"""
+    user_id = message.from_user.id
+    chat_id = message.chat.id
+    message_id = message.message_id
+    
+    # Save user information to database with chat_id
+    save_user(message.from_user, chat_id)
+    
+    # Save the message to the database
+    save_message(message)
+    
+    # Log this interaction
+    log_interaction(user_id, "photo_message")
+    
+    # Get the file ID of the largest photo (best quality)
+    if message.photo:
+        file_id = message.photo[-1].file_id
+        logger.info(f"Image received from user {user_id} with message ID {message_id}. File ID: {file_id}")
+        
+        # Send a processing message to the user
+        processing_message = bot.reply_to(message, "Processing your image... Please wait.")
+        
+        # Download the image
+        image_path = download_image_from_telegram(file_id, user_id, message_id)
+        
+        if not image_path:
+            bot.edit_message_text(
+                "Sorry, I couldn't download your image. Please try again later.",
+                chat_id=chat_id,
+                message_id=processing_message.message_id
+            )
+            return
+        
+        try:
+            # Process the image with Gemini API
+            logger.info(f"Starting image processing workflow for user {user_id}")
+            gemini_response = process_image_with_gemini(image_path, user_id)
+            
+            if not gemini_response:
+                bot.edit_message_text(
+                    "Sorry, I couldn't process your image with our AI service. Please try again later.",
+                    chat_id=chat_id,
+                    message_id=processing_message.message_id
+                )
+                cleanup_temp_file(image_path)
+                return
+            
+            # Save the result to database
+            save_success = save_image_processing_result(user_id, message_id, file_id, gemini_response)
+            
+            if not save_success:
+                logger.warning(f"Failed to save image processing result to database for user {user_id}")
+                # Continue anyway, as we can still return the result to the user
+            
+            # Extract the text content from the response
+            result_text = extract_text_from_gemini_response(gemini_response)
+            
+            # Send the result back to the user
+            logger.info(f"Sending image analysis result to user {user_id}")
+            bot.edit_message_text(
+                f"Here's what I see in your image:\n\n{result_text}",
+                chat_id=chat_id,
+                message_id=processing_message.message_id
+            )
+            
+            # Log successful completion
+            logger.info(f"Successfully completed image processing workflow for user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Error in image processing workflow: {str(e)}")
+            logger.error(traceback.format_exc())
+            
+            # Inform the user
+            bot.edit_message_text(
+                "Sorry, an error occurred while processing your image. Please try again later.",
+                chat_id=chat_id,
+                message_id=processing_message.message_id
+            )
+        
+        finally:
+            # Clean up the temporary file
+            cleanup_temp_file(image_path)
+            logger.info(f"Completed image processing workflow for user {user_id}")
+    else:
+        bot.reply_to(message, "I couldn't find any image in your message. Please try sending it again.")
 
 # Handler for text messages
 @bot.message_handler(func=lambda message: True, content_types=['text'])
@@ -866,6 +1171,48 @@ def view_db_users():
         })
     except Exception as e:
         logger.error(f"Error retrieving users: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+# Route to view image processing results
+@app.route('/image_processing_results/<int:user_id>')
+def view_image_processing_results(user_id):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # Get user details
+        cursor.execute("""
+        SELECT u.*, p.language, p.notifications, p.theme
+        FROM users u
+        LEFT JOIN user_preferences p ON u.user_id = p.user_id
+        WHERE u.user_id = ?
+        """, (user_id,))
+        user = dict(cursor.fetchone() or {})
+        
+        if not user:
+            return jsonify({'error': 'User not found'}), 404
+        
+        # Get image processing results
+        cursor.execute("""
+        SELECT id, message_id, file_id, processed_at
+        FROM image_processing_results 
+        WHERE user_id = ? 
+        ORDER BY processed_at DESC
+        LIMIT 50
+        """, (user_id,))
+        
+        results = [dict(row) for row in cursor.fetchall()]
+        
+        conn.close()
+        
+        return jsonify({
+            'user': user,
+            'image_processing_results': results,
+            'total_results': len(results)
+        })
+    except Exception as e:
+        logger.error(f"Error retrieving image processing results: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 # Route to view user messages

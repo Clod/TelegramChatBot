@@ -12,6 +12,7 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 - **Database Storage**: Persistent storage of user data, messages, and interactions
 - **User Privacy Controls**: Users can delete their own data from the system
 - **Message History**: Shows users their previous message history
+- **Image Processing**: Analyzes images using Gemini 2.0 Lite API
 
 ### Technical Features
 - **Webhook Integration**: Secure communication with Telegram API
@@ -21,8 +22,10 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
   - User preferences (settings)
   - User messages (message history)
   - User interactions (action tracking)
+  - Image processing results (AI analysis)
 - **Admin Dashboard**: Web endpoints for monitoring and management
 - **Health Monitoring**: Status checks and statistics
+- **AI Integration**: Gemini 2.0 Lite API for image analysis
 
 ## Architecture
 
@@ -74,6 +77,14 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 - `action_data`: Additional data about the interaction
 - `timestamp`: When interaction occurred
 
+### Image Processing Results Table
+- `id`: Auto-incrementing primary key
+- `user_id`: References Users
+- `message_id`: Telegram message ID
+- `file_id`: Telegram file ID for the image
+- `gemini_response`: JSON response from Gemini API
+- `processed_at`: When the image was processed
+
 ## API Endpoints
 
 ### Bot Endpoints
@@ -87,6 +98,7 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 - `/db_users`: List all users in the database
 - `/user_messages/{user_id}`: View messages from a specific user
 - `/user_interactions/{user_id}`: View interactions from a specific user
+- `/image_processing_results/{user_id}`: View image processing results
 - `/update_preference/{user_id}`: Update user preferences
 - `/health`: System health check with statistics
 
@@ -102,6 +114,7 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 ### Commands
 - `/start`, `/help`: Initialize the bot and show the main menu
 - Text messages: Automatically saved and history is displayed
+- Photos: Processed with Gemini 2.0 Lite API for detailed analysis
 
 ### Menu Navigation
 1. **Main Menu**: Choose between different options or delete data
@@ -116,6 +129,7 @@ The application is designed to run on a server with:
 - PyTeleBot
 - SQLite3
 - SSL certificate (Let's Encrypt)
+- Gemini API key (for image processing)
 
 ## Monitoring and Maintenance
 
