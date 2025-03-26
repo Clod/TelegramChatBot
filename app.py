@@ -672,7 +672,7 @@ def save_image_processing_result(user_id, message_id, file_id, gemini_response):
 
 def extract_text_from_gemini_response(gemini_response):
     """
-    Extract the text content from Gemini API response
+    Extract the text content from Gemini API response and format it as pipe-separated key-value pairs
     """
     try:
         # Check if response is already a dictionary (parsed JSON)
@@ -693,16 +693,6 @@ def extract_text_from_gemini_response(gemini_response):
                         for part in candidate["content"]["parts"]:
                             if "text" in part:
                                 all_text += part["text"]
-            
-            # Try to extract JSON from the text
-            # Look for JSON content between markers or clean up markdown formatting
-            all_text = all_text.replace("```json", "").replace("```", "").strip()
-            
-            # If the text starts with "json\n", remove it
-            if all_text.startswith("json\n"):
-                all_text = all_text[5:]
-            
-            return all_text
         
         # Handle single response format
         elif "candidates" in response_dict and response_dict["candidates"]:
@@ -712,18 +702,42 @@ def extract_text_from_gemini_response(gemini_response):
                 for part in candidate["content"]["parts"]:
                     if "text" in part:
                         all_text += part["text"]
-            
-            # Clean up the text
-            all_text = all_text.replace("```json", "").replace("```", "").strip()
-            
-            # If the text starts with "json\n", remove it
-            if all_text.startswith("json\n"):
-                all_text = all_text[5:]
-            
-            return all_text
+        else:
+            return "No text content found in the response."
         
-        return "No text content found in the response."
-    
+        # Clean up the text - remove code blocks, markdown formatting, etc.
+        all_text = all_text.replace("```json", "").replace("```", "").strip()
+        
+        # If the text contains JSON, extract the values and convert to pipe-separated format
+        if "{" in all_text and "}" in all_text:
+            try:
+                # Try to extract JSON content
+                json_start = all_text.find("{")
+                json_end = all_text.rfind("}") + 1
+                json_content = all_text[json_start:json_end]
+                
+                # Parse the JSON
+                data = json.loads(json_content)
+                
+                # Convert to pipe-separated format
+                pipe_format = "|".join([f"{key}={value}" for key, value in data.items()])
+                return pipe_format
+            except json.JSONDecodeError:
+                # If JSON parsing fails, return the cleaned text
+                # Remove any remaining markdown formatting
+                all_text = all_text.replace("`", "").replace("**", "")
+                return all_text
+        
+        # If the text already contains pipe-separated values, just return it
+        if "|" in all_text and "=" in all_text:
+            # Remove any markdown formatting
+            all_text = all_text.replace("`", "").replace("**", "")
+            return all_text
+            
+        # Otherwise, return the cleaned text
+        all_text = all_text.replace("`", "").replace("**", "")
+        return all_text
+        
     except Exception as e:
         logger.error(f"Error extracting text from Gemini response: {str(e)}")
         logger.error(f"Response was: {gemini_response}")
