@@ -70,7 +70,6 @@ class AppRegressionTest(unittest.TestCase):
         # Stop all patches
         self.env_patcher.stop()
         self.bot_patcher.stop()
-        self.app_patcher.stop()
 
     def test_init_db(self):
         """Test database initialization"""
