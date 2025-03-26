@@ -35,10 +35,6 @@ class AppRegressionTest(unittest.TestCase):
         self.bot_patcher = patch('app.bot')
         self.mock_bot = self.bot_patcher.start()
         
-        # Mock the Flask app
-        self.app_patcher = patch('app.app')
-        self.mock_app = self.app_patcher.start()
-        
         # Create a test user
         self.test_user = MagicMock()
         self.test_user.id = 12345
