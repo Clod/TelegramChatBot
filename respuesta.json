@@ -1,0 +1,222 @@
+[
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": "Here"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": "'s a detailed description of the image:\n\n**Overall:**\n\nThe image shows"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": " a partially filled-out form on white paper. The form is for collecting personal"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": " information. The form is lying on a wooden surface.\n\n**Form Details:**\n\n*   **Header:** The form has a section for a QR code, and a"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": " placeholder.\n*   **Fields:** The form includes the following fields:\n    *   Full Name: \"LUIGI CADORNA\" is written in the field"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": ".\n    *   Date of Birth: \"8/12/1962\" is written in the field.\n    *   Age: \"63\" is written in the field.\n    *   Email Address"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": ": \"luigi.cadorna@ymail.com\" is written in the field.\n    *   Phone Number: \"1234567890\" is written in the field.\n    *   City:"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": " \"Buenos Aires\" is written in the field.\n    *   State: \"JALISCO\" is written in the field.\n    *   Gender: The \"Male\" box is checked.\n    *   Preferred Contact Method: The \"Mail\" box is checked.\n    *   Signature:"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": " There is some handwritten text in the signature area, including \"Escribo algo\" and \"IMPREW TA\".\n\n**Additional Details:**\n\n*   The handwriting on the form is neat and legible.\n*   The form appears to be filled out with a black pen.\n*   There are some other"
+                        }
+                    ]
+                }
+            }
+        ],
+        "usageMetadata": {
+            "trafficType": "ON_DEMAND"
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    },
+    {
+        "candidates": [
+            {
+                "content": {
+                    "role": "model",
+                    "parts": [
+                        {
+                            "text": " papers visible in the background.\n*   The form is slightly wrinkled, suggesting it has been handled."
+                        }
+                    ]
+                },
+                "finishReason": "STOP"
+            }
+        ],
+        "usageMetadata": {
+            "promptTokenCount": 1811,
+            "candidatesTokenCount": 346,
+            "totalTokenCount": 2157,
+            "trafficType": "ON_DEMAND",
+            "promptTokensDetails": [
+                {
+                    "modality": "TEXT",
+                    "tokenCount": 5
+                },
+                {
+                    "modality": "IMAGE",
+                    "tokenCount": 1806
+                }
+            ],
+            "candidatesTokensDetails": [
+                {
+                    "modality": "TEXT",
+                    "tokenCount": 346
+                }
+            ]
+        },
+        "modelVersion": "gemini-2.0-flash-lite",
+        "createTime": "2025-03-26T19:09:19.684597Z",
+        "responseId": "31DkZ7XkKeW4qsMPt4ixoA0"
+    }
+]

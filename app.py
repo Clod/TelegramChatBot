@@ -573,8 +573,9 @@ def process_image_with_gemini(image_path, user_id):
         payload = {
             "contents": [
                 {
+                    "role": "user",
                     "parts": [
-                        {"text": "Describe this image in detail"},
+                        {"text": "Analyze the image and extract the following personal information: full name, date of birth, age, email, phone number, city, state, gender, and preferred contact method.  Return the extracted information as **a single, complete JSON object**. Ensure the response is **only the JSON object itself**, without any markdown formatting, code blocks, or extraneous text. Follow this JSON structure:\n\n```json\n{\n  \"full_name\": \"\",\n  \"date_of_birth\": \"\",\n  \"age\": null,\n  \"email\": \"\",\n  \"phone_number\": \"\",\n  \"city\": \"\",\n  \"state\": \"\",\n  \"gender\": \"\",\n  \"preferred_contact_method\": \"\"\n}\n```\nIf any piece of information cannot be confidently extracted from the image, leave the corresponding JSON field as an empty string (for strings) or `null` (for numbers like age)."},
                         {
                             "inline_data": {
                                 "mime_type": "image/jpeg",
