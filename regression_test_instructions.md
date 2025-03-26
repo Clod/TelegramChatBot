@@ -16,7 +16,7 @@ Before running the tests, ensure you have the following:
 
    ```bash
    pip install flask telebot python-dotenv google-auth requests
-   pip install unittest-mock pytest pytest-cov
+   pip install pytest pytest-cov
    ```
 
 2. **Place Test Files**
