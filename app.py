@@ -1907,9 +1907,12 @@ if __name__ == '__main__':
             if not cert_exists:
                  logger.warning(f"SSL Certificate file not found at {WEBHOOK_SSL_CERT}. Setting webhook without certificate.")
 
-            bot.set_webhook(url=WEBHOOK_URL,
-                            certificate=open(WEBHOOK_SSL_CERT, 'r') if cert_exists else None)
-            logger.info("Webhook set successfully.")
+            # Set webhook *without* sending the certificate.
+            # This assumes SSL termination happens *before* Flask (e.g., by Nginx/Caddy).
+            # If Flask handles SSL directly (as implied by app.run with ssl_context),
+            # the certificate at WEBHOOK_SSL_CERT MUST be valid and trusted by Telegram.
+            bot.set_webhook(url=WEBHOOK_URL)
+            logger.info("Webhook set successfully (without sending certificate parameter to Telegram).")
             # Verify webhook status
             webhook_info_check = bot.get_webhook_info()
             logger.info(f"Webhook status check: URL='{webhook_info_check.url}', Pending Updates={webhook_info_check.pending_update_count}")
