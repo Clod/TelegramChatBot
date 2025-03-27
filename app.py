@@ -23,13 +23,6 @@ import getpass
 print(f"Effective UID: {os.geteuid()}")                                                                                              
 print(f"Effective User: {getpass.getuser()}")                                                                                        
 
-# Load environment variables from .env file
-# This is a security best practice to avoid hardcoding sensitive information
-# override=True ensures that variables in .env take precedence over system environment variables
-load_dotenv(override=True)
-logger.info(".env file loaded (override=True)")
-
-
 # Configure logging to track what's happening in our application
 # This helps with debugging and monitoring
 logging.basicConfig(
@@ -37,6 +30,13 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'  # Format of log messages
 )
 logger = logging.getLogger(__name__)  # Create a logger specific to this module
+
+# Load environment variables from .env file
+# This is a security best practice to avoid hardcoding sensitive information
+# override=True ensures that variables in .env take precedence over system environment variables
+load_dotenv(override=True)
+logger.info(".env file loaded (override=True)")
+
 
 # Get DEBUG_MODE from environment variables
 # Default to "False" if not set
