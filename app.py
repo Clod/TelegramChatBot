@@ -577,37 +577,14 @@ def send_welcome(message):
         'preferences': prefs
     }
     
-    # Generate the main menu
-    menu_markup = generate_main_menu()
-    logger.info(f"Generated main menu for user {user_id}: {menu_markup}")
-    
-    # Reply to the user with a welcome message and show the main menu
+    # Welcome text based on language preference
     welcome_text = "Welcome to the bot! Choose an option:"
     if prefs['language'] == 'es':
         welcome_text = "¡Bienvenido al bot! Elige una opción:"
     
-    try:
-        bot.reply_to(
-            message,  # The original message from the user
-            welcome_text,  # Text to send
-            reply_markup=menu_markup  # Attach the main menu buttons
-        )
-        logger.info(f"Successfully sent welcome message with menu to user {user_id}")
-    except Exception as e:
-        logger.error(f"Error sending welcome message to user {user_id}: {str(e)}")
-        logger.error(traceback.format_exc())
-        
-        # Try sending as a new message instead of a reply
-        try:
-            bot.send_message(
-                chat_id,
-                welcome_text,
-                reply_markup=menu_markup
-            )
-            logger.info(f"Successfully sent welcome message as new message to user {user_id}")
-        except Exception as e2:
-            logger.error(f"Error sending welcome message as new message to user {user_id}: {str(e2)}")
-            logger.error(traceback.format_exc())
+    # Use send_main_menu_message to send a message with the main menu
+    send_main_menu_message(chat_id, welcome_text)
+    logger.info(f"Sent welcome message with main menu to user {user_id}")
 
 # Function to get user's message history
 def get_user_message_history(user_id, limit=10):
