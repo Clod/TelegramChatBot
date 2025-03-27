@@ -1,7 +1,6 @@
 import unittest
 import os
 import json
-from src import app
 import sqlite3
 import tempfile
 import base64
@@ -10,10 +9,14 @@ from io import BytesIO
 from datetime import datetime
 
 # Import the app module
-import unittest
-import os
-import json
+from . import app
 
+import sys                                                                                                                                                                                                  
+print(sys.path)   
+
+import sys                                                                                                                                                                                                  
+import os                                                                                                                                                                                                   
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))                                                                                                                                              
                                                                        
       
 class AppRegressionTest(unittest.TestCase):
