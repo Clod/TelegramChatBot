@@ -92,16 +92,19 @@ def get_credentials():
             logger.error("Service account file not found")
             return None
             
-        # Create credentials from the service account file
+        # Create credentials from the service account file with the correct scope for Gemini API
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE,
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
         )
         
-        # Refresh the credentials if needed
-        if credentials.expired:
-            credentials.refresh(GoogleAuthRequest())
-            
+        # Ensure the credentials are refreshed
+        auth_req = GoogleAuthRequest()
+        credentials.refresh(auth_req)
+        
+        # Log successful authentication
+        logger.info(f"Successfully obtained credentials for service account")
+        
         return credentials
     except Exception as e:
         logger.error(f"Error getting credentials: {str(e)}")
@@ -689,6 +692,10 @@ def process_image_with_gemini(image_path, user_id):
         auth_req = GoogleAuthRequest()
         credentials.refresh(auth_req)
         access_token = credentials.token
+        
+        # Log token information (without revealing the full token)
+        token_preview = access_token[:10] + "..." if access_token else "None"
+        logger.info(f"Using token starting with: {token_preview} for image processing")
         
         # Make the API request with the access token
         response = requests.post(
@@ -1325,6 +1332,10 @@ def handle_callback_query(call):
                 "Content-Type": "application/json"
             }
             
+            # Log token information (without revealing the full token)
+            token_preview = credentials.token[:10] + "..." if credentials.token else "None"
+            logger.info(f"Using token starting with: {token_preview}")
+            
             # Prepare the request payload
             payload = {
                 "contents": [
@@ -1345,6 +1356,7 @@ def handle_callback_query(call):
             logger.info(f"Sending request to Gemini API for user {user_id} message analysis")
             
             # Send request to Gemini API
+            logger.info(f"Sending request to Gemini API endpoint: {GEMINI_API_ENDPOINT}")
             response = requests.post(
                 GEMINI_API_ENDPOINT,
                 headers=headers,
@@ -1358,6 +1370,23 @@ def handle_callback_query(call):
                 
                 # Log success
                 logger.info(f"Successfully received Gemini analysis for user {user_id}")
+            else:
+                # Log the error response for debugging
+                logger.error(f"Gemini API error: {response.status_code} - {response.text}")
+                
+                # Check for specific error types
+                error_message = "Sorry, I couldn't analyze your messages at this time."
+                try:
+                    error_json = response.json()
+                    if 'error' in error_json:
+                        error_code = error_json.get('error', {}).get('code')
+                        error_message = error_json.get('error', {}).get('message', '')
+                        logger.error(f"Gemini API error code: {error_code}, message: {error_message}")
+                        
+                        if 'ACCESS_TOKEN_TYPE_UNSUPPORTED' in error_message:
+                            error_message = "Authentication error with AI service. Please contact support."
+                except Exception as parse_e:
+                    logger.error(f"Error parsing error response: {parse_e}")
                 
                 # Send the analysis result
                 bot.edit_message_text(
