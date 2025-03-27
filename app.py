@@ -1185,6 +1185,10 @@ def handle_callback_query(call):
                      f"• {interactions_deleted} interactions\n\n"
                      f"You can start using the bot again with /start."
             )
+            # --- ADD THIS ---
+            # Send the main menu as a new message after successful deletion
+            send_main_menu_message(chat_id, text="Data deleted. Choose an option:")
+            # --- END ADD ---
         else:
             # Notify the user of failure
             bot.edit_message_text(
