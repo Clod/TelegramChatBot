@@ -1110,10 +1110,15 @@ def handle_text(message):
             # Default reply if not a command and history display is off or empty
             bot.reply_to(message, "Received your message.") # Simplified reply
 
-    # --- ADD THIS ---
-    # Always send the main menu after handling any text message
-    send_main_menu_message(chat_id)
-    # --- END ADD ---
+    # --- MODIFY THIS SECTION ---
+    # Send the main menu only if the message was not a command
+    if not message.text.startswith('/'):
+        send_main_menu_message(chat_id)
+        logger.info(f"Sent main menu after handling non-command text from chat {chat_id}")
+    else:
+        # Log that we skipped sending the menu because it was a command
+        logger.info(f"Skipped sending main menu from handle_text for command '{message.text}' in chat {chat_id}")
+    # --- END MODIFICATION ---
 
 # Function to create a confirmation menu for data deletion
 def generate_delete_confirmation_menu():
