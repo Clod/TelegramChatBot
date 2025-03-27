@@ -1850,16 +1850,106 @@ def health_check():
 
 # This code only runs if the script is executed directly (not imported)
 if __name__ == '__main__':
-    # Remove any existing webhook first
-    bot.remove_webhook()
-    
-    # Set the webhook without uploading the certificate
-    bot.set_webhook(url=WEBHOOK_URL)
-    
-    # Start the Flask web server
-    app.run(
-        host='0.0.0.0',  # Listen on all available network interfaces
-        port=443,  # Use the standard HTTPS port
-        ssl_context=(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV),  # Use SSL for secure HTTPS
-        debug=False  # Don't run in debug mode in production
-    )
+    # Determine if BASE_URL was inferred or explicitly set
+    inferred_base_url = "localhost" in BASE_URL or "127.0.0.1" in BASE_URL
+
+    if DEBUG_MODE:
+        logger.info("Starting bot in DEBUG mode using polling...")
+        # Remove webhook if it was set previously
+        try:
+            logger.info("Attempting to remove existing webhook (if any)...")
+            bot.remove_webhook()
+            logger.info("Webhook removed successfully (or was not set).")
+        except Exception as e:
+            # This is expected if no webhook was set, log as warning
+            logger.warning(f"Could not remove webhook (may not have been set): {e}")
+
+        # Start polling (blocking call)
+        logger.info("Bot polling started...")
+        # Note: Flask server is NOT started in polling mode by default.
+        # Web Apps will not be reachable unless you run Flask separately or use ngrok.
+        try:
+            bot.infinity_polling(logger_level=logging.INFO) # Use configured logger level
+        except Exception as poll_e:
+             logger.error(f"Polling failed: {poll_e}", exc_info=True)
+        finally:
+             logger.info("Bot polling stopped.")
+
+    else: # Production mode (DEBUG_MODE is False)
+        logger.info("Starting bot in PRODUCTION mode using webhook...")
+        # CRITICAL Check: Ensure BASE_URL is set correctly for production
+        if inferred_base_url or not BASE_URL or not BASE_URL.startswith("https://"):
+             logger.error("FATAL: BASE_URL is not set, not HTTPS, or is local in production mode. Webhook/WebApps will fail.")
+             logger.error(f"Current BASE_URL: {BASE_URL}")
+             logger.error(f"Please set BASE_URL=https://precarina.com.ar (or your public domain) in your .env file.")
+             exit(1) # Exit if configuration is invalid for production
+
+        # Remove any existing webhook first
+        try:
+            logger.info("Attempting to remove existing webhook...")
+            bot.remove_webhook()
+            logger.info("Webhook removed successfully.")
+        except Exception as e:
+            logger.error(f"Error removing webhook before setting new one: {e}")
+            # Decide if you want to proceed or exit; exiting is safer in production
+            exit(1)
+
+        # Set the webhook
+        try:
+            logger.info(f"Setting webhook to: {WEBHOOK_URL}")
+            # Check if cert files exist before trying to open them
+            cert_exists = os.path.exists(WEBHOOK_SSL_CERT)
+            if not cert_exists:
+                 logger.warning(f"SSL Certificate file not found at {WEBHOOK_SSL_CERT}. Setting webhook without certificate.")
+
+            bot.set_webhook(url=WEBHOOK_URL,
+                            certificate=open(WEBHOOK_SSL_CERT, 'r') if cert_exists else None)
+            logger.info("Webhook set successfully.")
+            # Verify webhook status
+            webhook_info_check = bot.get_webhook_info()
+            logger.info(f"Webhook status check: URL='{webhook_info_check.url}', Pending Updates={webhook_info_check.pending_update_count}")
+            if webhook_info_check.last_error_message:
+                 logger.warning(f"Telegram reported webhook error: {webhook_info_check.last_error_message}")
+
+        except telebot.apihelper.ApiTelegramException as e:
+             logger.error(f"FATAL: Failed to set webhook due to Telegram API error: {e}")
+             logger.error(f"Ensure BASE_URL ({BASE_URL}) is correct and publicly accessible via HTTPS.")
+             logger.error(traceback.format_exc())
+             exit(1) # Exit if webhook cannot be set
+        except Exception as e:
+            logger.error(f"FATAL: Failed to set webhook due to other error: {e}")
+            logger.error(traceback.format_exc())
+            exit(1) # Exit if webhook cannot be set
+
+        # Start the Flask web server
+        flask_port = int(os.environ.get("PORT", 443)) # Use PORT from env if set, else default 443
+        logger.info(f"Starting Flask server on 0.0.0.0:{flask_port} with SSL...")
+        try:
+            # Ensure cert files exist for Flask
+            if not os.path.exists(WEBHOOK_SSL_CERT) or not os.path.exists(WEBHOOK_SSL_PRIV):
+                 logger.error("FATAL: SSL certificate or key file not found for Flask server.")
+                 logger.error(f"Cert path checked: {os.path.abspath(WEBHOOK_SSL_CERT)}")
+                 logger.error(f"Key path checked: {os.path.abspath(WEBHOOK_SSL_PRIV)}")
+                 exit(1)
+
+            app.run(
+                host='0.0.0.0',
+                port=flask_port,
+                ssl_context=(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV),
+                debug=False # Flask debug mode MUST be off in production
+            )
+        except FileNotFoundError:
+             # This case is handled above, but kept for safety
+             logger.error("FATAL: SSL certificate or key file not found during Flask startup.")
+             exit(1)
+        except OSError as e:
+             if "Address already in use" in str(e):
+                  logger.error(f"FATAL: Port {flask_port} is already in use. Stop the existing process or change the PORT environment variable.")
+             else:
+                  logger.error(f"FATAL: Failed to start Flask server due to OS error: {e}")
+                  logger.error(traceback.format_exc())
+             exit(1)
+        except Exception as e:
+             logger.error(f"FATAL: Failed to start Flask server: {e}")
+             logger.error(traceback.format_exc())
+             exit(1)
