@@ -469,25 +469,36 @@ def generate_main_menu():
 
     # Add Web App buttons only if not in DEBUG_MODE (requires valid BASE_URL)
     # Also check if BASE_URL starts with https, as required by Telegram Web Apps
+    logger.debug(f"generate_main_menu: DEBUG_MODE={DEBUG_MODE}, BASE_URL='{BASE_URL}'") # DEBUG Log
     if not DEBUG_MODE and BASE_URL and BASE_URL.startswith("https://"):
+        logger.info("generate_main_menu: Conditions met for adding Web App buttons.") # INFO Log
         web_app_buttons = []
         # Check if the URLs seem valid (basic check) - Assuming profile URL might exist
+        # logger.debug(f"Checking Profile URL: {WEBAPP_EDIT_PROFILE_URL}") # DEBUG Log
         # if WEBAPP_EDIT_PROFILE_URL and WEBAPP_EDIT_PROFILE_URL.startswith("https://"):
+        #     logger.info("generate_main_menu: Adding 'Edit My Profile' button.") # INFO Log
         #     web_app_buttons.append(
         #         InlineKeyboardButton("✏️ Edit My Profile", web_app=WebAppInfo(WEBAPP_EDIT_PROFILE_URL))
         #     )
+        logger.debug(f"Checking Messages URL: {WEBAPP_EDIT_MESSAGES_URL}") # DEBUG Log
         if WEBAPP_EDIT_MESSAGES_URL and WEBAPP_EDIT_MESSAGES_URL.startswith("https://"):
+            logger.info("generate_main_menu: Adding 'Edit My Messages' button.") # INFO Log
             web_app_buttons.append(
                  InlineKeyboardButton("📝 Edit My Messages", web_app=WebAppInfo(WEBAPP_EDIT_MESSAGES_URL))
             )
 
         if web_app_buttons:
+             logger.info(f"generate_main_menu: Calling markup.add() with {len(web_app_buttons)} web app button(s).") # INFO Log
              # Add buttons in a new row or append to existing logic as needed
              markup.add(*web_app_buttons) # Adds buttons in a row
         else:
-             logger.warning("Web App URLs not configured or invalid (must be HTTPS), skipping Web App buttons in menu.")
+             # This warning should NOT appear if BASE_URL is correct and DEBUG_MODE is False
+             logger.warning("generate_main_menu: No valid Web App buttons created, skipping markup.add().")
     elif not BASE_URL or not BASE_URL.startswith("https://"):
-        logger.warning("BASE_URL is not set or does not use HTTPS. Web App buttons will not be shown.")
+        # This warning should NOT appear if BASE_URL is correct
+        logger.warning("generate_main_menu: BASE_URL is not set or does not use HTTPS. Web App buttons will not be shown.")
+    else: # This case means DEBUG_MODE is True
+         logger.info("generate_main_menu: DEBUG_MODE is True, skipping Web App buttons.")
 
 
     return markup  # Return the created menu
