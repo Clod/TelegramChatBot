@@ -592,9 +592,9 @@ def get_user_message_history(user_id, limit=10):
     
     # Get user messages ordered by timestamp (newest first)
     cursor.execute("""
-    SELECT message_text, timestamp 
-    FROM user_messages 
-    WHERE user_id = ? AND message_type = 'text'
+    SELECT message_text, timestamp
+    FROM user_messages
+    WHERE user_id = ? AND message_type = 'text' AND message_text != '/start' -- Exclude /start messages
     ORDER BY timestamp DESC
     LIMIT ?
     """, (user_id, limit))
@@ -1693,7 +1693,7 @@ def webapp_get_messages():
         cursor.execute("""
             SELECT id, message_id, message_text, timestamp
             FROM user_messages
-            WHERE user_id = ? AND message_text IS NOT NULL AND message_text != ''
+            WHERE user_id = ? AND message_text IS NOT NULL AND message_text != '' AND message_text != '/start' -- Exclude /start messages
             ORDER BY timestamp DESC
             LIMIT ?
         """, (user_id, limit))
