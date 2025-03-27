@@ -86,8 +86,8 @@ A successful test run will show all tests passing with no failures or errors.
 
 If you see an ImportError, ensure:
 - All required dependencies are installed
-- The app.py file is in the src directory
-- The import statements in the test file match the structure of app.py (e.g., from src import app)
+- The app.py file is in the same directory as the test file
+- The import statements in the test file match the structure of app.py
 
 ### AttributeError
 

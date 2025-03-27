@@ -6,7 +6,14 @@ import tempfile
 import base64
 from unittest.mock import patch, MagicMock, mock_open
 from io import BytesIO
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from datetime import datetime
+
+# Import the app module
+import app
 
 # Import the app module
 from . import app
