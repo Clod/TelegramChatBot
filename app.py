@@ -559,28 +559,29 @@ def send_welcome(message):
     try: # <<< ADD try block here
         # Save user information to database with chat_id
         save_user(message.from_user, chat_id)
-    # Save the message to the database
-    save_message(message)
-    
-    # Log this interaction
-    command = message.text.split()[0].replace('/', '')
-    log_interaction(user_id, f"command_{command}")
-    
-    # Get user preferences
-    prefs = get_user_preferences(user_id)
-    
-    # Initialize or reset the user's session
-    user_sessions[user_id] = {
-        'state': 'main_menu',
-        'data': {},
-        'preferences': prefs
-    }
-    
-    # Welcome text based on language preference
-    welcome_text = "Welcome to the bot! Choose an option:"
-    if prefs['language'] == 'es':
-        welcome_text = "¡Bienvenido al bot! Elige una opción:"
-    
+
+        # Save the message to the database
+        save_message(message)
+
+        # Log this interaction
+        command = message.text.split()[0].replace('/', '')
+        log_interaction(user_id, f"command_{command}")
+
+        # Get user preferences
+        prefs = get_user_preferences(user_id)
+
+        # Initialize or reset the user's session
+        user_sessions[user_id] = {
+            'state': 'main_menu',
+            'data': {},
+            'preferences': prefs
+        }
+
+        # Welcome text based on language preference
+        welcome_text = "Welcome to the bot! Choose an option:"
+        if prefs['language'] == 'es':
+            welcome_text = "¡Bienvenido al bot! Elige una opción:"
+
         # Use send_main_menu_message to send a message with the main menu
         send_main_menu_message(chat_id, welcome_text)
         logger.info(f"Sent welcome message with main menu to user {user_id}")
