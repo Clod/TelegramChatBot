@@ -465,7 +465,7 @@ def generate_main_menu():
     
     # Add buttons to the markup
     markup.add(
-        InlineKeyboardButton("Menu 1", callback_data="menu1"),  # First button
+        InlineKeyboardButton("📊 Analyze My Messages", callback_data="menu1"),  # Updated label
         InlineKeyboardButton("Menu 2", callback_data="menu2")   # Second button
         # callback_data is what the bot receives when a user clicks the button
     )
@@ -1279,13 +1279,111 @@ def handle_callback_query(call):
         # Update the user's state
         user_sessions[user_id]['state'] = 'menu1'
         
-        # Edit the original message to show the submenu for Menu 1
+        # Show processing message
         bot.edit_message_text(
-            chat_id=call.message.chat.id,  # Which chat to update
-            message_id=call.message.message_id,  # Which message to edit
-            text="You selected Menu 1. Choose a subitem:",  # New text
-            reply_markup=generate_submenu("menu1")  # New buttons (submenu)
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="Analyzing your messages... This may take a moment."
         )
+        
+        # Get user message history
+        messages = get_user_message_history(user_id, limit=20)
+        
+        if not messages:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="You don't have any messages to analyze yet.",
+                reply_markup=generate_main_menu()
+            )
+            return
+        
+        # Format messages for Gemini
+        prompt = "Analyze the following user messages and provide insights about the topics, sentiment, and any patterns you notice. Keep your response concise and friendly:\n\n"
+        for msg in messages:
+            if 'message_text' in msg and msg['message_text']:
+                # Skip command messages
+                if msg['message_text'].startswith('/'):
+                    continue
+                prompt += f"- {msg['message_text']}\n"
+        
+        try:
+            # Get credentials for Gemini API
+            credentials = get_credentials()
+            if not credentials:
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text="Sorry, I couldn't authenticate with the AI service. Please try again later.",
+                    reply_markup=generate_main_menu()
+                )
+                return
+            
+            # Prepare the request to Gemini
+            headers = {
+                "Authorization": f"Bearer {credentials.token}",
+                "Content-Type": "application/json"
+            }
+            
+            # Prepare the request payload
+            payload = {
+                "contents": [
+                    {
+                        "role": "user",
+                        "parts": [{"text": prompt}]
+                    }
+                ],
+                "generationConfig": {
+                    "temperature": 0.4,
+                    "topK": 32,
+                    "topP": 0.95,
+                    "maxOutputTokens": 1024,
+                }
+            }
+            
+            # Log the request (without the full prompt for privacy)
+            logger.info(f"Sending request to Gemini API for user {user_id} message analysis")
+            
+            # Send request to Gemini API
+            response = requests.post(
+                GEMINI_API_ENDPOINT,
+                headers=headers,
+                json=payload
+            )
+            
+            # Process the response
+            if response.status_code == 200:
+                response_json = response.json()
+                analysis_result = extract_text_from_gemini_response(response_json)
+                
+                # Log success
+                logger.info(f"Successfully received Gemini analysis for user {user_id}")
+                
+                # Send the analysis result
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text=f"📊 Analysis of your messages:\n\n{analysis_result}",
+                    reply_markup=generate_main_menu()
+                )
+            else:
+                logger.error(f"Gemini API error: {response.status_code} - {response.text}")
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text="Sorry, I couldn't analyze your messages at this time. The AI service returned an error.",
+                    reply_markup=generate_main_menu()
+                )
+        
+        except Exception as e:
+            logger.error(f"Error processing messages with Gemini for user {user_id}: {str(e)}")
+            logger.error(traceback.format_exc())
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="An error occurred while analyzing your messages. Please try again later.",
+                reply_markup=generate_main_menu()
+            )
     
     elif call.data == "menu2":
         # User clicked the "Menu 2" button
