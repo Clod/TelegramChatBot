@@ -229,11 +229,23 @@ def log_interaction(user_id, action_type, action_data=None):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
+    # Convert action_data to JSON string if it's not None and not already a string
+    action_data_str = None
+    if action_data is not None:
+        if isinstance(action_data, str):
+            action_data_str = action_data
+        else:
+            try:
+                action_data_str = json.dumps(action_data)
+            except Exception as e:
+                logger.error(f"Error converting action_data to JSON for user {user_id}, action {action_type}: {e}")
+                action_data_str = str(action_data) # Fallback to string representation
+
     cursor.execute("""
     INSERT INTO user_interactions (user_id, action_type, action_data)
     VALUES (?, ?, ?)
-    """, (user_id, action_type, action_data))
-    
+    """, (user_id, action_type, action_data_str)) # Use the string version
+
     conn.commit()
     conn.close()
 
