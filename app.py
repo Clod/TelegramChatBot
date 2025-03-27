@@ -594,10 +594,15 @@ def get_user_message_history(user_id, limit=10):
     cursor = conn.cursor()
     
     # Get user messages ordered by timestamp (newest first)
+    # Include both regular text messages and processed text from images
     cursor.execute("""
     SELECT message_text, timestamp
     FROM user_messages
-    WHERE user_id = ? AND message_type = 'text' AND message_text != '/start' -- Exclude /start messages
+    WHERE user_id = ? 
+      AND message_text IS NOT NULL 
+      AND message_text != '' 
+      AND message_text != '/start' -- Exclude /start messages
+      AND (message_type = 'text' OR message_type = 'processed_text_from_image')
     ORDER BY timestamp DESC
     LIMIT ?
     """, (user_id, limit))
@@ -605,6 +610,7 @@ def get_user_message_history(user_id, limit=10):
     messages = [dict(row) for row in cursor.fetchall()]
     conn.close()
     
+    logger.info(f"Retrieved {len(messages)} messages for user {user_id}, including processed image text")
     return messages
 
 # Image processing functions
