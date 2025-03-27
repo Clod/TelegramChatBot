@@ -1329,7 +1329,8 @@ def handle_callback_query(call):
                     prompt += f"- {msg['message_text']}\n"
         
         # Log the complete prompt outside the loop (limited to first 500 chars)
-        logger.info(f"Enviando a Gemini (first 500 chars): {prompt[:500]}...")
+        # logger.info(f"Enviando a Gemini (first 500 chars): {prompt[:500]}...")
+        logger.info(f"Enviando a Gemini (first 500 chars): {prompt}")
         
         try:
             # Get credentials for Gemini API
