@@ -1312,7 +1312,7 @@ def handle_callback_query(call):
             return
         
         # Format messages for Gemini
-        prompt = "Analyze the following user messages and check if there are questions or instructions about what you should do and answer questions and follow instructions. Keep your response concise and friendly and ALLWAYS in Spanish:\n\n"
+        prompt = "Analyze the following user messages and check if there are questions or instructions about what you should do. Your response must include the answer(s) to all questions and instructions. Keep your response concise and friendly and ALLWAYS in Spanish:\n\n"
         for msg in messages:
             if 'message_text' in msg and msg['message_text']:
                 # Skip command messages
