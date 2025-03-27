@@ -885,11 +885,26 @@ def handle_photo(message):
 
             # Save the result (JSON string or original text) to database
             # Use json_to_save which holds either the JSON string or the original result_text
-            save_success = save_image_processing_result(user_id, message_id, file_id, json_to_save)
+            save_image_processing_success = save_image_processing_result(user_id, message_id, file_id, json_to_save)
 
-            # --- END MODIFICATION ---
+            # --- START: Save processed text to user_messages ---
+            try:
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("""
+                INSERT INTO user_messages (user_id, chat_id, message_id, message_text, message_type, has_media, media_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (user_id, chat_id, message_id, json_to_save, 'processed_text_from_image', False, None))
+                conn.commit()
+                conn.close()
+                logger.info(f"Saved processed text (JSON or original) to user_messages for user {user_id}, original message_id {message_id}")
+            except Exception as db_err:
+                logger.error(f"Error saving processed text to user_messages for user {user_id}: {db_err}", exc_info=True)
+            # --- END: Save processed text to user_messages ---
 
-            if not save_success:
+            # --- END MODIFICATION --- # This comment seems misplaced from the original code, keeping structure
+
+            if not save_image_processing_success: # Check the success of saving to image_processing_results
                 logger.warning(f"Failed to save image processing result to database for user {user_id}")
                 # Continue anyway, as we can still return the result to the user
 
