@@ -554,12 +554,11 @@ def send_welcome(message):
     # Get the user ID to track this specific user's session
     user_id = message.from_user.id
     chat_id = message.chat.id
-    
     logger.info(f"Received /start or /help command from user {user_id} in chat {chat_id}")
-    
-    # Save user information to database with chat_id
-    save_user(message.from_user, chat_id)
-    
+
+    try: # <<< ADD try block here
+        # Save user information to database with chat_id
+        save_user(message.from_user, chat_id)
     # Save the message to the database
     save_message(message)
     
@@ -582,9 +581,17 @@ def send_welcome(message):
     if prefs['language'] == 'es':
         welcome_text = "¡Bienvenido al bot! Elige una opción:"
     
-    # Use send_main_menu_message to send a message with the main menu
-    send_main_menu_message(chat_id, welcome_text)
-    logger.info(f"Sent welcome message with main menu to user {user_id}")
+        # Use send_main_menu_message to send a message with the main menu
+        send_main_menu_message(chat_id, welcome_text)
+        logger.info(f"Sent welcome message with main menu to user {user_id}")
+
+    except Exception as e: # <<< ADD except block here
+        logger.error(f"Error during send_welcome for user {user_id}: {e}", exc_info=True) # Log error with traceback
+        try:
+            # Attempt to send an error message to the user
+            bot.reply_to(message, "Sorry, something went wrong while starting our chat. Please try /start again later.")
+        except Exception as send_error:
+            logger.error(f"Failed to send error message to user {user_id} after initial error: {send_error}")
 
 # Function to get user's message history
 def get_user_message_history(user_id, limit=10):
