@@ -1,10 +1,7 @@
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 import unittest
 import os
 import json
+from src import app
 import sqlite3
 import tempfile
 import base64
