@@ -473,6 +473,18 @@ def generate_submenu(menu_id):
     )
     return markup  # Return the created submenu
 
+def send_main_menu_message(chat_id, text="Choose an option from the menu:"):
+    """Sends a new message with the main menu."""
+    try:
+        bot.send_message(
+            chat_id,
+            text,
+            reply_markup=generate_main_menu()
+        )
+        logger.info(f"Sent main menu as a new message to chat {chat_id}")
+    except Exception as e:
+        logger.error(f"Failed to send main menu message to chat {chat_id}: {e}")
+
 # Handler for /start and /help commands
 # This decorator tells the bot to call this function when users send these commands
 @bot.message_handler(commands=['start', 'help'])
@@ -933,6 +945,11 @@ def handle_photo(message):
             # Log successful completion
             logger.info(f"Successfully completed image processing workflow for user {user_id}")
 
+            # --- ADD THIS ---
+            # Send the main menu as a new message after successful photo processing
+            send_main_menu_message(chat_id, text="Image processed. What would you like to do next?")
+            # --- END ADD ---
+
         except Exception as e:
             logger.error(f"Error in image processing workflow: {str(e)}", exc_info=True) # Use exc_info=True for traceback
 
@@ -953,8 +970,13 @@ def handle_photo(message):
             cleanup_temp_file(image_path) # cleanup_temp_file already logs success/failure
             logger.info(f"Completed image processing workflow cleanup for user {user_id}")
     else:
+        # No photo found in the message
         bot.reply_to(message, "I couldn't find any image in your message. Please try sending it again.")
-        log_interaction(user_id, 'photo_message_no_data') # Log missing photo data
+        log_interaction(user_id, 'photo_message_no_data')
+        # --- ADD THIS ---
+        # Send menu if the user sent a 'photo' message type without actual photo data
+        send_main_menu_message(chat_id)
+        # --- END ADD ---
 
 # Handler for text messages
 @bot.message_handler(func=lambda message: True, content_types=['text'])
@@ -1005,8 +1027,13 @@ def handle_text(message):
             # Send the message history back to the user
             bot.reply_to(message, history_text)
         else:
-            # This should not happen as we just saved the current message
-            bot.reply_to(message, "No message history found.")
+            # Default reply if not a command and history display is off or empty
+            bot.reply_to(message, "Received your message.") # Simplified reply
+
+    # --- ADD THIS ---
+    # Always send the main menu after handling any text message
+    send_main_menu_message(chat_id)
+    # --- END ADD ---
 
 # Function to create a confirmation menu for data deletion
 def generate_delete_confirmation_menu():
@@ -1235,40 +1262,19 @@ def handle_callback_query(call):
         
         # Store the selected subitem in the user's session
         user_sessions[user_id]['data']['selected_item'] = 'menu1_sub1'
-        
-        # Show a notification to the user that we're processing their request
-        bot.answer_callback_query(call.id, "Processing Menu 1 - Subitem 1...")
-        # Placeholder for API call - this is where you would add actual functionality
-        
-    elif call.data == "menu1_sub2":
-        # User clicked "Menu 1 Subitem 2"
-        logger.info(f"User {user_id}: Processing Menu 1 - Subitem 2 (API call)")
-        
-        # Store the selected subitem in the user's session
-        user_sessions[user_id]['data']['selected_item'] = 'menu1_sub2'
-        
-        bot.answer_callback_query(call.id, "Processing Menu 1 - Subitem 2...")
-        # Placeholder for API call
-        
-    elif call.data == "menu2_sub1":
-        # User clicked "Menu 2 Subitem 1"
-        logger.info(f"User {user_id}: Processing Menu 2 - Subitem 1 (API call)")
-        
-        # Store the selected subitem in the user's session
-        user_sessions[user_id]['data']['selected_item'] = 'menu2_sub1'
-        
-        bot.answer_callback_query(call.id, "Processing Menu 2 - Subitem 1...")
-        # Placeholder for API call
-        
-    elif call.data == "menu2_sub2":
-        # User clicked "Menu 2 Subitem 2"
-        logger.info(f"User {user_id}: Processing Menu 2 - Subitem 2 (API call)")
-        
-        # Store the selected subitem in the user's session
-        user_sessions[user_id]['data']['selected_item'] = 'menu2_sub2'
-        
-        bot.answer_callback_query(call.id, "Processing Menu 2 - Subitem 2...")
-        # Placeholder for API call
+        sub_item = call.data
+        logger.info(f"User {user_id}: Processing {sub_item}")
+        user_sessions[user_id]['data']['selected_item'] = sub_item
+
+        # Use answer_callback_query for quick feedback
+        bot.answer_callback_query(call.id, f"Processing {sub_item}...")
+
+        # --- ADD THIS ---
+        # Send the main menu as a new message after processing a sub-item action
+        # You might want to send a result message *first* if the sub-item action has a visible result
+        # For now, just sending the menu:
+        send_main_menu_message(chat_id, text=f"{sub_item} processed. Choose next option:")
+        # --- END ADD ---
 
 # Flask route that receives updates from Telegram
 # The URL includes the bot token to ensure only Telegram can send updates
