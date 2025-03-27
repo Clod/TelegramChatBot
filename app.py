@@ -788,7 +788,8 @@ def handle_photo(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     message_id = message.message_id
-    
+    logger.info(f"Received photo from user {user_id} in chat {chat_id}, message_id {message_id}") # Added message_id logging
+
     # Save user information to database with chat_id
     save_user(message.from_user, chat_id)
     
@@ -802,22 +803,24 @@ def handle_photo(message):
     if message.photo:
         file_id = message.photo[-1].file_id
         logger.info(f"Image received from user {user_id} with message ID {message_id}. File ID: {file_id}")
-        
+
         # Send a processing message to the user
         processing_message = bot.reply_to(message, "Processing your image... Please wait.")
-        
-        # Download the image
-        image_path = download_image_from_telegram(file_id, user_id, message_id)
-        
-        if not image_path:
-            bot.edit_message_text(
-                "Sorry, I couldn't download your image. Please try again later.",
-                chat_id=chat_id,
-                message_id=processing_message.message_id
-            )
-            return
-        
+
+        image_path = None # Initialize image_path
         try:
+            # Download the image
+            image_path = download_image_from_telegram(file_id, user_id, message_id)
+
+            if not image_path:
+                bot.edit_message_text(
+                    "Sorry, I couldn't download your image. Please try again later.",
+                    chat_id=chat_id,
+                    message_id=processing_message.message_id
+                )
+                log_interaction(user_id, 'download_image_error', {'file_id': file_id}) # Log download error
+                return
+
             # Process the image with Gemini API
             logger.info(f"Starting image processing workflow for user {user_id}")
             gemini_response = process_image_with_gemini(image_path, user_id)
@@ -828,86 +831,103 @@ def handle_photo(message):
                     chat_id=chat_id,
                     message_id=processing_message.message_id
                 )
-                cleanup_temp_file(image_path)
+                log_interaction(user_id, 'gemini_processing_error', {'error': 'No response'}) # Log processing error
+                # No cleanup needed here, finally block handles it
                 return
-            
-            # Save the result to database
-            save_success = save_image_processing_result(user_id, message_id, file_id, gemini_response)
-            
+
+            # Extract the text content from the response (pipe-separated string)
+            result_text = extract_text_from_gemini_response(gemini_response)
+            logger.info(f"Extracted text from Gemini for user {user_id}: {result_text[:100]}...") # Log extracted text preview
+
+            # --- START MODIFICATION ---
+
+            # Convert the pipe-separated string to a JSON string
+            json_to_save = None
+            try:
+                if result_text and '|' in result_text and '=' in result_text:
+                    pairs = result_text.strip().split('|')
+                    data_dict = {}
+                    for pair in pairs:
+                        if '=' in pair:
+                            key, value = pair.split('=', 1)
+                            # Handle potential 'null' string for age or empty strings
+                            if value.lower() == 'null':
+                                data_dict[key.strip()] = None
+                            else:
+                                data_dict[key.strip()] = value.strip()
+                        else:
+                            logger.warning(f"Skipping invalid pair '{pair}' in Gemini response for user {user_id}")
+                    if data_dict: # Only convert if we successfully parsed something
+                        json_to_save = json.dumps(data_dict, ensure_ascii=False, indent=2)
+                        logger.info(f"Successfully converted extracted text to JSON for user {user_id}")
+                    else:
+                         logger.warning(f"Could not parse any valid key-value pairs from Gemini response for user {user_id}. Saving original text.")
+                         json_to_save = result_text # Fallback to saving original text
+                else:
+                    logger.warning(f"Extracted text for user {user_id} does not seem to be pipe-separated key-value pairs. Saving original text.")
+                    json_to_save = result_text # Fallback to saving original text
+
+            except Exception as e:
+                logger.error(f"Error converting pipe-separated string to JSON for user {user_id}: {e}", exc_info=True)
+                json_to_save = result_text # Fallback to saving original text in case of error
+
+            # Save the result (JSON string or original text) to database
+            # Use json_to_save which holds either the JSON string or the original result_text
+            save_success = save_image_processing_result(user_id, message_id, file_id, json_to_save)
+
+            # --- END MODIFICATION ---
+
             if not save_success:
                 logger.warning(f"Failed to save image processing result to database for user {user_id}")
                 # Continue anyway, as we can still return the result to the user
-            
-            # Extract the text content from the response
-            result_text = extract_text_from_gemini_response(gemini_response)
-            
-            # Create a mock message object to save the extracted JSON as a user message
-            class MockMessage:
-                def __init__(self, user_id, chat_id, text):
-                    self.from_user = type('obj', (object,), {'id': user_id})
-                    self.chat = type('obj', (object,), {'id': chat_id})
-                    self.text = text
-                    self.message_id = int(time.time())  # Use timestamp as message_id
-                    self.content_type = 'text'
-            
-            # Create and save the mock message with the extracted JSON
-            mock_message = MockMessage(user_id, chat_id, result_text)
-            save_message(mock_message)
-            
-            # Get the user's message history (including the newly saved JSON)
-            message_history = get_user_message_history(user_id, limit=10)
-            
-            # Format the message history
-            if message_history:
-                # Create a formatted message with the user's message history
-                history_text = "📝 Your message history:\n\n"
-                
-                for i, msg in enumerate(message_history, 1):
-                    # Format the timestamp
-                    timestamp = datetime.fromisoformat(msg['timestamp'].replace('Z', '+00:00'))
-                    formatted_time = timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                    
-                    # Add the message to the history text (truncate if too long)
-                    message_text = msg['message_text']
-                    if len(message_text) > 100:
-                        message_text = message_text[:97] + "..."
-                    
-                    history_text += f"{i}. [{formatted_time}] {message_text}\n"
-                
-                # Send the message history back to the user
-                bot.edit_message_text(
-                    history_text,
-                    chat_id=chat_id,
-                    message_id=processing_message.message_id
-                )
-            else:
-                # This should not happen as we just saved the message
-                bot.edit_message_text(
-                    "No message history found.",
-                    chat_id=chat_id,
-                    message_id=processing_message.message_id
-                )
-            
-            # Log successful completion
-            logger.info(f"Successfully completed image processing workflow for user {user_id}")
-            
-        except Exception as e:
-            logger.error(f"Error in image processing workflow: {str(e)}")
-            logger.error(traceback.format_exc())
-            
-            # Inform the user
+
+            # --- REMOVE MockMessage and history logic ---
+            # Remove the following lines:
+            # class MockMessage: ... (entire class definition if it's only used here)
+            # mock_message = MockMessage(user_id, chat_id, result_text)
+            # save_message(mock_message)
+            # message_history = get_user_message_history(user_id, limit=10)
+            # if message_history: ... (entire if/else block sending history)
+
+            # --- MODIFY final user message ---
+            # Send the extracted text directly back to the user
+            final_message_text = f"Extracted Information:\n\n{result_text}"
+            if len(final_message_text) > 4096: # Telegram message length limit
+                final_message_text = final_message_text[:4093] + "..."
+                logger.warning(f"Truncated long extracted text message for user {user_id}")
+
             bot.edit_message_text(
-                "Sorry, an error occurred while processing your image. Please try again later.",
+                final_message_text,
                 chat_id=chat_id,
                 message_id=processing_message.message_id
             )
-        
+            log_interaction(user_id, 'sent_extracted_text', {'length': len(result_text)}) # Log sending result
+
+            # Log successful completion
+            logger.info(f"Successfully completed image processing workflow for user {user_id}")
+
+        except Exception as e:
+            logger.error(f"Error in image processing workflow: {str(e)}", exc_info=True) # Use exc_info=True for traceback
+
+            # Inform the user
+            try:
+                bot.edit_message_text(
+                    "Sorry, an error occurred while processing your image. Please try again later.",
+                    chat_id=chat_id,
+                    message_id=processing_message.message_id
+                )
+            except Exception as api_e: # Catch potential error editing message if original failed badly
+                 logger.error(f"Failed to send error message to user {user_id}: {api_e}")
+
+            log_interaction(user_id, 'photo_workflow_error', {'error': str(e)}) # Log workflow error
+
         finally:
             # Clean up the temporary file
-            cleanup_temp_file(image_path)
-            logger.info(f"Completed image processing workflow for user {user_id}")
+            cleanup_temp_file(image_path) # cleanup_temp_file already logs success/failure
+            logger.info(f"Completed image processing workflow cleanup for user {user_id}")
     else:
         bot.reply_to(message, "I couldn't find any image in your message. Please try sending it again.")
+        log_interaction(user_id, 'photo_message_no_data') # Log missing photo data
 
 # Handler for text messages
 @bot.message_handler(func=lambda message: True, content_types=['text'])
