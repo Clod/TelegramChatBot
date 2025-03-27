@@ -16,10 +16,6 @@ from datetime import datetime
 import app
 
 # Import the app module
-from . import app
-
-import sys                                                                                                                                                                                                  
-print(sys.path)   
 
 import sys                                                                                                                                                                                                  
 import os                                                                                                                                                                                                   
