@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Data Collection Form</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        .form-container {
+            border: 2px solid black;
+            padding: 20px;
+        }
+
+        .field-group {
+            margin-bottom: 20px;
+        }
+
+        .field-label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            display: block; /* Ensure label is on its own line */
+        }
+
+        .field-code {
+            font-size: 0.8em;
+            color: gray;
+            margin-left: 5px;
+        }
+
+        .input-box {
+            border: 2px solid black;
+            padding: 10px;
+            width: 300px; /* Adjust as needed */
+            margin-bottom: 5px; /* Space for format hint */
+            box-sizing: border-box; /* Include padding and border in width */
+        }
+		.input-box-signature {
+            border: 2px solid black;
+            padding: 10px;
+            width: 600px; /* Adjust as needed */
+			height: 100px;
+            margin-bottom: 5px; /* Space for format hint */
+            box-sizing: border-box; /* Include padding and border in width */
+        }
+
+        .format-hint {
+            font-size: 0.8em;
+            color: gray;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+
+        .checkbox {
+            width: 20px;
+            height: 20px;
+            border: 2px solid black;
+            margin-right: 10px;
+        }
+        .checkbox-label{
+            margin-right: 25px;
+        }
+
+        .qr-code-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+		/*Placeholder styles*/
+		.qr-placeholder {
+			width: 150px;
+			height: 150px;
+			border: 1px dashed gray;
+			display: inline-block; /* Allows width/height to be set */
+			line-height: 150px; /* Vertically center text */
+			text-align: center;
+		}
+    </style>
+</head>
+<body>
+
+<div class="form-container">
+
+    <div class="qr-code-container">
+        <div class="qr-placeholder">QR Code Placeholder</div>
+		<!-- Replace with actual QR Code.  Generate dynamically per form. -->
+    </div>
+
+    <div class="field-group">
+        <label class="field-label">Full Name <span class="field-code">NAME</span></label>
+        <div class="input-box"></div>
+    </div>
+
+    <div class="field-group">
+        <label class="field-label">Date of Birth <span class="field-code">DOB</span></label>
+        <div class="input-box"></div>
+        <div class="format-hint">MM/DD/YYYY</div>
+    </div>
+
+    <div class="field-group">
+        <label class="field-label">Age <span class="field-code">AGE</span></label>
+        <div class="input-box"></div>
+        <div class="format-hint">Integer Only</div>
+    </div>
+
+    <div class="field-group">
+        <label class="field-label">Email Address <span class="field-code">EMAIL</span></label>
+        <div class="input-box"></div>
+    </div>
+
+    <div class="field-group">
+        <label class="field-label">Phone Number <span class="field-code">PHONE</span></label>
+        <div class="input-box"></div>
+        <div class="format-hint">(XXX) XXX-XXXX</div>
+    </div>
+
+    <div class="field-group">
+        <label class="field-label">City <span class="field-code">CITY</span></label>
+        <div class="input-box"></div>
+    </div>
+
+    <div class="field-group">
+        <label class="field-label">State <span class="field-code">STATE</span></label>
+        <div class="input-box"></div>
+        <div class="format-hint">Two-Letter Abbreviation</div>
+    </div>
+     <div class="field-group">
+        <label class="field-label">Gender <span class="field-code">GENDER</span></label>
+        <div class="checkbox-group">
+            <div class="checkbox"></div><div class = "checkbox-label">Male</div>
+            <div class="checkbox"></div><div class = "checkbox-label">Female</div>
+            <div class="checkbox"></div><div class = "checkbox-label">Other</div>
+        </div>
+    </div>
+
+    <div class="field-group">
+        <label class="field-label">Preferred Contact Method <span class="field-code">CONTACT</span></label>
+        <div class="checkbox-group">
+            <div class="checkbox"></div><div class = "checkbox-label">Email</div>
+            <div class="checkbox"></div><div class = "checkbox-label">Phone</div>
+            <div class="checkbox"></div><div class = "checkbox-label">Mail</div>
+        </div>
+    </div>
+	<div class="field-group">
+        <label class="field-label">Signature<span class="field-code">SIGN</span></label>
+        <div class="input-box-signature"></div>
+    </div>
+</div>
+
+</body>
+</html>
