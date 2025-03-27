@@ -25,7 +25,9 @@ print(f"Effective User: {getpass.getuser()}")
 
 # Load environment variables from .env file
 # This is a security best practice to avoid hardcoding sensitive information
-load_dotenv()
+# override=True ensures that variables in .env take precedence over system environment variables
+load_dotenv(override=True)
+logger.info(".env file loaded (override=True)")
 
 
 # Configure logging to track what's happening in our application
@@ -36,11 +38,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)  # Create a logger specific to this module
 
-# Get DEBUG_MODE from environmet variables
-DEBUG_MODE_STR = os.environ.get("DEBUG_MODE", "False").lower()
-DEBUG_MODE = DEBUG_MODE_STR == "true"
+# Get DEBUG_MODE from environment variables
+# Default to "False" if not set
+DEBUG_MODE_STR_RAW = os.environ.get("DEBUG_MODE", "False")
+logger.info(f"Raw DEBUG_MODE string from environment: '{DEBUG_MODE_STR_RAW}'") # Log the raw value
+DEBUG_MODE_STR = DEBUG_MODE_STR_RAW.lower()
+DEBUG_MODE = DEBUG_MODE_STR == "true" # Only "true" (case-insensitive) evaluates to True
 
-print(f"DEBUG_MODE is: {DEBUG_MODE}")
+print(f"DEBUG_MODE evaluated as: {DEBUG_MODE}") # Use a slightly different print message
 
 if DEBUG_MODE:
     print("Debug mode is ON!")
