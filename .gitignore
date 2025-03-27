@@ -10,6 +10,8 @@ intro-gemini-c51ccc040972.json
 bot_users.db
 bot_users.db-journal
 
+certs/
+
 # Python 
 telegram_bot_wh                                                                                                                                                                                                                                            
 __pycache__/                                                                                                                                                                                                                                         
