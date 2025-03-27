@@ -40,6 +40,13 @@ logger = logging.getLogger(__name__)  # Create a logger specific to this module
 DEBUG_MODE_STR = os.environ.get("DEBUG_MODE", "False").lower()
 DEBUG_MODE = DEBUG_MODE_STR == "true"
 
+print(f"DEBUG_MODE is: {DEBUG_MODE}")
+
+if DEBUG_MODE:
+    print("Debug mode is ON!")
+else:
+    print("Debug mode is OFF!")
+
 # Get the Telegram Bot Token from environment variables
 TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
