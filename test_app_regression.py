@@ -9,7 +9,7 @@ from io import BytesIO
 from datetime import datetime
 
 # Import the app module
-from . import app
+import app
 
 import sys                                                                                                                                                                                                  
 print(sys.path)   
