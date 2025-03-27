@@ -1306,13 +1306,14 @@ def handle_callback_query(call):
             return
         
         # Format messages for Gemini
-        prompt = "Analyze the following user messages and provide insights about the topics, sentiment, and any patterns you notice. Keep your response concise and friendly:\n\n"
+        prompt = "Analyze the following user messages and check if there are questions or instructions about what you should do and answer questions and follow instructions. Keep your response concise and friendly and ALLWAYS in Spanish:\n\n"
         for msg in messages:
             if 'message_text' in msg and msg['message_text']:
                 # Skip command messages
                 if msg['message_text'].startswith('/'):
                     continue
                 prompt += f"- {msg['message_text']}\n"
+            logger.info("Enviando a Gemini: " + prompt)
         
         try:
             # Get credentials for Gemini API
