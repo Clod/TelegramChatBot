@@ -1370,6 +1370,14 @@ def handle_callback_query(call):
                 
                 # Log success
                 logger.info(f"Successfully received Gemini analysis for user {user_id}")
+                
+                # Send the analysis result
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text=f"📊 Analysis of your messages:\n\n{analysis_result}",
+                    reply_markup=generate_main_menu()
+                )
             else:
                 # Log the error response for debugging
                 logger.error(f"Gemini API error: {response.status_code} - {response.text}")
@@ -1388,15 +1396,6 @@ def handle_callback_query(call):
                 except Exception as parse_e:
                     logger.error(f"Error parsing error response: {parse_e}")
                 
-                # Send the analysis result
-                bot.edit_message_text(
-                    chat_id=call.message.chat.id,
-                    message_id=call.message.message_id,
-                    text=f"📊 Analysis of your messages:\n\n{analysis_result}",
-                    reply_markup=generate_main_menu()
-                )
-            else:
-                logger.error(f"Gemini API error: {response.status_code} - {response.text}")
                 bot.edit_message_text(
                     chat_id=call.message.chat.id,
                     message_id=call.message.message_id,
