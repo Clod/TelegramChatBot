@@ -7,20 +7,16 @@ import base64
 from unittest.mock import patch, MagicMock, mock_open
 from io import BytesIO
 import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from datetime import datetime
+
+# Fix the import path for both unittest and pytest
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.insert(0, parent_dir)
+sys.path.insert(0, current_dir)
 
 # Import the app module
 import app
-
-# Import the app module
-
-import sys                                                                                                                                                                                                  
-import os                                                                                                                                                                                                   
-sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))                                                                                                                                              
-                                                                       
       
 class AppRegressionTest(unittest.TestCase):
     """Comprehensive regression tests for the Telegram bot application"""
@@ -667,3 +663,8 @@ class AppRegressionTest(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+# Add a pytest entry point for discovery
+def test_dummy():
+    """Dummy test to help pytest discover the test class"""
+    pass
