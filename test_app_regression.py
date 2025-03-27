@@ -9,8 +9,16 @@ from io import BytesIO
 from datetime import datetime
 
 # Import the app module
-import app
+from . import app
 
+import sys                                                                                                                                                                                                  
+print(sys.path)   
+
+import sys                                                                                                                                                                                                  
+import os                                                                                                                                                                                                   
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))                                                                                                                                              
+                                                                       
+      
 class AppRegressionTest(unittest.TestCase):
     """Comprehensive regression tests for the Telegram bot application"""
 
