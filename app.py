@@ -1310,10 +1310,26 @@ def handle_callback_query(call):
         for msg in messages:
             if 'message_text' in msg and msg['message_text']:
                 # Skip command messages
-                if msg['message_text'].startswith('/'):
+                if isinstance(msg['message_text'], str) and msg['message_text'].startswith('/'):
                     continue
-                prompt += f"- {msg['message_text']}\n"
-            logger.info("Enviando a Gemini: " + prompt)
+                    
+                # Check if the message text is JSON
+                try:
+                    if isinstance(msg['message_text'], str) and msg['message_text'].startswith('{') and msg['message_text'].endswith('}'):
+                        # Try to parse as JSON to make it more readable
+                        json_data = json.loads(msg['message_text'])
+                        # Format JSON data as a readable string
+                        formatted_json = json.dumps(json_data, indent=2, ensure_ascii=False)
+                        prompt += f"- JSON Data: {formatted_json}\n"
+                    else:
+                        # Regular text message
+                        prompt += f"- {msg['message_text']}\n"
+                except (json.JSONDecodeError, AttributeError):
+                    # If it's not valid JSON or not a string, just add it as is
+                    prompt += f"- {msg['message_text']}\n"
+        
+        # Log the complete prompt outside the loop (limited to first 500 chars)
+        logger.info(f"Enviando a Gemini (first 500 chars): {prompt[:500]}...")
         
         try:
             # Get credentials for Gemini API
