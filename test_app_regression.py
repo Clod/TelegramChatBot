@@ -485,6 +485,81 @@ class AppRegressionTest(unittest.TestCase):
         
         self.assertIsNotNone(interaction)
         self.assertEqual(interaction[3], 'main_menu')  # action_data
+        
+    @patch('app.get_credentials')
+    @patch('app.requests.post')
+    @patch('app.get_user_message_history')
+    @patch('app.bot.edit_message_text')
+    def test_handle_callback_query_menu1(self, mock_edit_message, mock_get_history, mock_post, mock_get_credentials):
+        """Test handling callback queries for Menu 1 (message analysis)"""
+        # Mock credentials
+        mock_credentials = MagicMock()
+        mock_credentials.token = 'test_token'
+        mock_get_credentials.return_value = mock_credentials
+        
+        # Mock message history
+        mock_get_history.return_value = [
+            {
+                'message_text': 'Test message 1',
+                'timestamp': datetime.now().isoformat()
+            },
+            {
+                'message_text': '{"key": "value"}',
+                'timestamp': datetime.now().isoformat()
+            },
+            {
+                'message_text': '/start',  # Should be skipped
+                'timestamp': datetime.now().isoformat()
+            }
+        ]
+        
+        # Mock Gemini API response
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = '{"candidates": [{"content": {"parts": [{"text": "Análisis de mensajes: El usuario ha enviado mensajes normales y datos JSON."}]}}]}'
+        mock_response.json.return_value = json.loads(mock_response.text)
+        mock_post.return_value = mock_response
+        
+        # Create a mock callback query for menu1
+        call = MagicMock()
+        call.from_user = self.test_user
+        call.message.chat.id = self.test_message.chat.id
+        call.message.message_id = 12345
+        call.data = 'menu1'
+        
+        # Handle callback query
+        app.handle_callback_query(call)
+        
+        # Assert message history was retrieved
+        mock_get_history.assert_called_once_with(self.test_user.id, limit=20)
+        
+        # Assert credentials were obtained
+        mock_get_credentials.assert_called_once()
+        
+        # Assert Gemini API was called
+        mock_post.assert_called_once()
+        
+        # Check the payload sent to Gemini API
+        args, kwargs = mock_post.call_args
+        self.assertEqual(args[0], app.GEMINI_API_ENDPOINT)
+        self.assertIn('json', kwargs)
+        payload = kwargs['json']
+        self.assertIn('contents', payload)
+        
+        # Verify JSON handling in the prompt
+        prompt_text = payload['contents'][0]['parts'][0]['text']
+        self.assertIn('Test message 1', prompt_text)
+        self.assertIn('JSON Data', prompt_text)  # Should format JSON nicely
+        self.assertNotIn('/start', prompt_text)  # Command should be skipped
+        
+        # Assert edit_message_text was called twice (once for "processing" message, once for result)
+        self.assertEqual(mock_edit_message.call_count, 2)
+        
+        # Check if the final message contains the analysis result
+        last_call_args = mock_edit_message.call_args_list[-1][1]
+        self.assertEqual(last_call_args['chat_id'], call.message.chat.id)
+        self.assertEqual(last_call_args['message_id'], call.message.message_id)
+        self.assertIn('Análisis de mensajes', last_call_args['text'])
 
     @patch('app.bot.edit_message_text')
     def test_handle_callback_query_view_data(self, mock_edit_message):
