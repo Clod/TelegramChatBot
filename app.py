@@ -555,6 +555,8 @@ def send_welcome(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     
+    logger.info(f"Received /start or /help command from user {user_id} in chat {chat_id}")
+    
     # Save user information to database with chat_id
     save_user(message.from_user, chat_id)
     
@@ -575,16 +577,37 @@ def send_welcome(message):
         'preferences': prefs
     }
     
+    # Generate the main menu
+    menu_markup = generate_main_menu()
+    logger.info(f"Generated main menu for user {user_id}: {menu_markup}")
+    
     # Reply to the user with a welcome message and show the main menu
     welcome_text = "Welcome to the bot! Choose an option:"
     if prefs['language'] == 'es':
         welcome_text = "¡Bienvenido al bot! Elige una opción:"
     
-    bot.reply_to(
-        message,  # The original message from the user
-        welcome_text,  # Text to send
-        reply_markup=generate_main_menu()  # Attach the main menu buttons
-    )
+    try:
+        bot.reply_to(
+            message,  # The original message from the user
+            welcome_text,  # Text to send
+            reply_markup=menu_markup  # Attach the main menu buttons
+        )
+        logger.info(f"Successfully sent welcome message with menu to user {user_id}")
+    except Exception as e:
+        logger.error(f"Error sending welcome message to user {user_id}: {str(e)}")
+        logger.error(traceback.format_exc())
+        
+        # Try sending as a new message instead of a reply
+        try:
+            bot.send_message(
+                chat_id,
+                welcome_text,
+                reply_markup=menu_markup
+            )
+            logger.info(f"Successfully sent welcome message as new message to user {user_id}")
+        except Exception as e2:
+            logger.error(f"Error sending welcome message as new message to user {user_id}: {str(e2)}")
+            logger.error(traceback.format_exc())
 
 # Function to get user's message history
 def get_user_message_history(user_id, limit=10):
