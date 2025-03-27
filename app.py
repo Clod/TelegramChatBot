@@ -3,10 +3,10 @@ import logging  # For logging messages and errors
 import os  # For accessing environment variables and file paths
 import sqlite3  # For SQLite database operations
 from datetime import datetime  # For timestamps in health checks
-from flask import Flask, request, jsonify  # Web framework for creating API endpoints
+from flask import Flask, request, jsonify, render_template # Web framework for creating API endpoints
 import telebot  # Python Telegram Bot API wrapper
 from dotenv import load_dotenv  # For loading environment variables from .env file
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton  # For creating interactive buttons
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo # For creating interactive buttons
 import requests  # For making HTTP requests to Gemini API
 import json  # For parsing JSON responses
 import tempfile  # For creating temporary files
@@ -45,8 +45,21 @@ TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
     # If the token isn't set, raise an error - the bot can't work without it
     raise ValueError("TELEGRAM_BOT_TOKEN environment variable is not set")
+
 # Create the webhook URL that Telegram will use to send updates to our bot
-WEBHOOK_URL = f"https://precarina.com.ar/{TOKEN}"
+BASE_URL = os.environ.get("BASE_URL")
+if not BASE_URL:
+    logger.warning("BASE_URL environment variable is not set. Attempting to infer...")
+    # Basic inference for local testing, might need adjustment
+    port = os.environ.get("PORT", "443") # Default to 443 if not set
+    BASE_URL = f"https://localhost:{port}"
+    logger.warning(f"Inferred BASE_URL as {BASE_URL}. Set this explicitly in .env for production.")
+
+WEBHOOK_URL = f"{BASE_URL}/{TOKEN}"
+# Define URLs for Web Apps (ensure these use BASE_URL)
+WEBAPP_EDIT_PROFILE_URL = f"{BASE_URL}/webapp/edit_profile" # URL for the profile editing web app
+WEBAPP_EDIT_MESSAGES_URL = f"{BASE_URL}/webapp/edit_messages" # URL for the message editing web app
+
 
 # Path to the service account JSON file
 SERVICE_ACCOUNT_FILE = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
@@ -453,7 +466,30 @@ def generate_main_menu():
     markup.add(
         InlineKeyboardButton("🗑️ Delete My Data", callback_data="delete_my_data")  # Delete data button
     )
-    
+
+    # Add Web App buttons only if not in DEBUG_MODE (requires valid BASE_URL)
+    # Also check if BASE_URL starts with https, as required by Telegram Web Apps
+    if not DEBUG_MODE and BASE_URL and BASE_URL.startswith("https://"):
+        web_app_buttons = []
+        # Check if the URLs seem valid (basic check) - Assuming profile URL might exist
+        # if WEBAPP_EDIT_PROFILE_URL and WEBAPP_EDIT_PROFILE_URL.startswith("https://"):
+        #     web_app_buttons.append(
+        #         InlineKeyboardButton("✏️ Edit My Profile", web_app=WebAppInfo(WEBAPP_EDIT_PROFILE_URL))
+        #     )
+        if WEBAPP_EDIT_MESSAGES_URL and WEBAPP_EDIT_MESSAGES_URL.startswith("https://"):
+            web_app_buttons.append(
+                 InlineKeyboardButton("📝 Edit My Messages", web_app=WebAppInfo(WEBAPP_EDIT_MESSAGES_URL))
+            )
+
+        if web_app_buttons:
+             # Add buttons in a new row or append to existing logic as needed
+             markup.add(*web_app_buttons) # Adds buttons in a row
+        else:
+             logger.warning("Web App URLs not configured or invalid (must be HTTPS), skipping Web App buttons in menu.")
+    elif not BASE_URL or not BASE_URL.startswith("https://"):
+        logger.warning("BASE_URL is not set or does not use HTTPS. Web App buttons will not be shown.")
+
+
     return markup  # Return the created menu
 
 # Function to create submenus based on which main menu item was selected
@@ -1576,6 +1612,185 @@ def update_preference(user_id):
     except Exception as e:
         logger.error(f"Error updating preference: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+
+# --- Message Editing Web App Routes ---
+
+@app.route('/webapp/edit_messages')
+def webapp_edit_messages():
+    """Serve the HTML page for the message editing web app."""
+    logger.info("Serving edit_messages.html for Web App request")
+    # Validation happens on data fetch/save, not here
+    # Assuming validate_init_data exists and is imported/defined elsewhere
+    # Assuming render_template is imported from flask
+    return render_template('edit_messages.html')
+
+@app.route('/webapp/get_messages', methods=['POST'])
+def webapp_get_messages():
+    """Provide user messages (with non-null text) to the web app after validating initData."""
+    logger.info("Received request for /webapp/get_messages")
+    try:
+        init_data_str = request.headers.get('X-Telegram-Init-Data')
+        if not init_data_str:
+            logger.warning("Missing X-Telegram-Init-Data header for get_messages")
+            return jsonify({'error': 'Authentication required'}), 401
+
+        # !!! IMPORTANT: Ensure validate_init_data function is defined and imported correctly !!!
+        # user_id, _ = validate_init_data(init_data_str, TOKEN)
+        # Placeholder check - replace with actual validation
+        try:
+            from urllib.parse import parse_qs
+            import hmac
+            import hashlib
+            data_check_string = "\n".join(sorted([f"{k}={v[0]}" for k, v in parse_qs(init_data_str).items() if k != 'hash']))
+            secret_key = hmac.new("WebAppData".encode(), TOKEN.encode(), hashlib.sha256).digest()
+            calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+            init_data_dict = parse_qs(init_data_str)
+            if init_data_dict.get('hash', [''])[0] != calculated_hash:
+                 raise ValueError("Invalid hash")
+            user_data = json.loads(init_data_dict['user'][0])
+            user_id = user_data.get('id')
+            if not user_id:
+                 raise ValueError("User ID not found in initData")
+        except Exception as validation_e:
+             logger.error(f"initData validation failed: {validation_e}", exc_info=True)
+             user_id = None # Ensure user_id is None if validation fails
+
+        if not user_id:
+            logger.warning("Invalid initData received for get_messages request")
+            return jsonify({'error': 'Invalid authentication data'}), 403
+
+        logger.info(f"Fetching messages for validated user_id: {user_id}")
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        # Fetch recent messages with non-null/non-empty message_text
+        limit = 20 # Adjust limit as needed
+        cursor.execute("""
+            SELECT id, message_id, message_text, timestamp
+            FROM user_messages
+            WHERE user_id = ? AND message_text IS NOT NULL AND message_text != ''
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """, (user_id, limit))
+        messages = [dict(row) for row in cursor.fetchall()]
+
+        conn.close()
+
+        logger.info(f"Successfully fetched {len(messages)} messages for user_id: {user_id}")
+        return jsonify(messages)
+
+    except Exception as e:
+        logger.error(f"Error fetching messages for web app: {e}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
+
+@app.route('/webapp/save_messages', methods=['POST'])
+def webapp_save_messages():
+    """Receive updated message data from the web app, validate, and save."""
+    logger.info("Received request for /webapp/save_messages")
+    try:
+        init_data_str = request.headers.get('X-Telegram-Init-Data')
+        if not init_data_str:
+             logger.warning("Missing X-Telegram-Init-Data header for save_messages request")
+             return jsonify({'error': 'Authentication required'}), 401
+
+        # !!! IMPORTANT: Ensure validate_init_data function is defined and imported correctly !!!
+        # user_id, _ = validate_init_data(init_data_str, TOKEN)
+        # Placeholder check - replace with actual validation
+        try:
+            from urllib.parse import parse_qs
+            import hmac
+            import hashlib
+            data_check_string = "\n".join(sorted([f"{k}={v[0]}" for k, v in parse_qs(init_data_str).items() if k != 'hash']))
+            secret_key = hmac.new("WebAppData".encode(), TOKEN.encode(), hashlib.sha256).digest()
+            calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
+            init_data_dict = parse_qs(init_data_str)
+            if init_data_dict.get('hash', [''])[0] != calculated_hash:
+                 raise ValueError("Invalid hash")
+            user_data = json.loads(init_data_dict['user'][0])
+            user_id = user_data.get('id')
+            if not user_id:
+                 raise ValueError("User ID not found in initData")
+        except Exception as validation_e:
+             logger.error(f"initData validation failed: {validation_e}", exc_info=True)
+             user_id = None # Ensure user_id is None if validation fails
+
+        if not user_id:
+             logger.warning("Invalid initData received for save_messages request")
+             return jsonify({'error': 'Invalid authentication data'}), 403
+
+        logger.info(f"Processing save_messages request for validated user_id: {user_id}")
+        data = request.json # Expecting a list of objects: [{'id': db_id, 'text': new_text}, ...]
+        if not data or not isinstance(data, list):
+            logger.warning(f"Invalid or missing JSON data received in save_messages request for user_id: {user_id}")
+            return jsonify({'error': 'Invalid data format received'}), 400
+
+        # --- Update Database ---
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        success_count = 0
+        fail_count = 0
+        errors = []
+
+        try:
+            cursor.execute("BEGIN TRANSACTION")
+
+            for item in data:
+                db_id = item.get('id')
+                new_text = item.get('text') # Allow empty string, but not null
+
+                # Basic validation
+                if db_id is None or not isinstance(db_id, int) or new_text is None:
+                    logger.warning(f"Skipping invalid item format in save_messages for user {user_id}: {item}")
+                    fail_count += 1
+                    errors.append(f"Invalid item format: {item}")
+                    continue
+
+                # Update the specific message, ensuring it belongs to the user
+                cursor.execute("""
+                    UPDATE user_messages
+                    SET message_text = ?
+                    WHERE id = ? AND user_id = ?
+                """, (new_text, db_id, user_id))
+
+                if cursor.rowcount > 0:
+                    success_count += 1
+                else:
+                    # Log if a message wasn't updated (might belong to another user or ID is wrong)
+                    logger.warning(f"Failed to update message with db_id {db_id} for user {user_id}. Rowcount: {cursor.rowcount}. Might not exist or belong to user.")
+                    fail_count += 1
+                    errors.append(f"Message ID {db_id} not found or doesn't belong to user.")
+
+
+            conn.commit()
+            logger.info(f"Finished saving messages for user_id: {user_id}. Success: {success_count}, Failed: {fail_count}")
+
+        except Exception as db_e:
+            conn.rollback()
+            success_count = 0 # Reset counts on rollback
+            fail_count = len(data) # Assume all failed on transaction error
+            errors.append(f"Transaction failed: {db_e}")
+            logger.error(f"Database transaction error saving messages for user_id {user_id}: {db_e}", exc_info=True)
+        finally:
+            conn.close()
+
+        if fail_count == 0:
+            return jsonify({'status': 'success', 'updated': success_count})
+        else:
+            status_code = 500 if "Transaction failed" in errors else 400
+            return jsonify({'status': 'partial_error' if success_count > 0 else 'error',
+                            'message': f'Failed to save {fail_count} message(s).',
+                            'updated': success_count,
+                            'failed': fail_count,
+                            'errors': errors}), status_code
+
+    except Exception as e:
+        logger.error(f"Error processing save_messages request: {e}", exc_info=True)
+        return jsonify({'error': 'Internal server error'}), 500
+
+# --- End Message Editing Web App Routes ---
+
 
 # Health check endpoint to verify the bot is working correctly
 @app.route('/health')
