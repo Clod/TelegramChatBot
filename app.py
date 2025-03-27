@@ -18,6 +18,10 @@ import google.auth
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleAuthRequest
 
+                                                                                                                          
+import getpass                                                                                                                       
+print(f"Effective UID: {os.geteuid()}")                                                                                              
+print(f"Effective User: {getpass.getuser()}")                                                                                        
 
 # Load environment variables from .env file
 # This is a security best practice to avoid hardcoding sensitive information
@@ -81,8 +85,11 @@ def get_credentials():
 
 # Paths to SSL certificate files
 # These are needed for secure HTTPS communication
-WEBHOOK_SSL_CERT = "/etc/letsencrypt/live/precarina.com.ar/fullchain.pem"  # Public certificate
-WEBHOOK_SSL_PRIV = "/etc/letsencrypt/live/precarina.com.ar/privkey.pem"     # Private key
+# WEBHOOK_SSL_CERT = "/etc/letsencrypt/live/precarina.com.ar/fullchain.pem"  # Public certificate
+# WEBHOOK_SSL_PRIV = "/etc/letsencrypt/live/precarina.com.ar/privkey.pem"     # Private key
+
+WEBHOOK_SSL_CERT = "certs/fullchain.pem"  # Public certificate
+WEBHOOK_SSL_PRIV = "certs/privkey.pem"     # Private key
 
 # Initialize our web application and Telegram bot
 app = Flask(__name__)  # Create a Flask web application
