@@ -955,9 +955,9 @@ def process_image_with_gemini(image_path, user_id):
     logger.info(f"Initiating Gemini API request for image from user_id: {user_id}")
 
     try:
-        # --- Add scope definition and modify get_credentials call ---
-        gemini_scope = ["https://www.googleapis.com/auth/aiplatform"]
-        credentials = get_credentials(scopes=gemini_scope) # MODIFIED
+        # --- Use broader cloud-platform scope for Gemini ---
+        gemini_scope = ["https://www.googleapis.com/auth/cloud-platform"] # CHANGED SCOPE
+        credentials = get_credentials(scopes=gemini_scope)
         # --- End modification ---
 
         if not credentials:
