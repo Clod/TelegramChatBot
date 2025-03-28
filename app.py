@@ -112,52 +112,61 @@ else:
 
 
 # Function to get authenticated credentials
-def get_credentials(scopes): # NEW signature
+def get_credentials(scopes):
     """Get authenticated credentials from service account file"""
-    logger.info("Attempting to get credentials...") # Log start
+    logger.info("Attempting to get credentials...")
     try:
         if not SERVICE_ACCOUNT_FILE or not os.path.exists(SERVICE_ACCOUNT_FILE):
             logger.error(f"Service account file not found at path: {SERVICE_ACCOUNT_FILE}")
             return None
 
         # Use the provided scopes argument
-        logger.info(f"Requesting credentials with scopes: {scopes}") # NEW log
+        logger.info(f"Requesting credentials with scopes: {scopes}")
 
         # Create credentials from the service account file using the provided scopes
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE,
-            scopes=scopes # Use the 'scopes' argument here
+            scopes=scopes
         )
         logger.info(f"Credentials object created from file: {SERVICE_ACCOUNT_FILE}")
 
-        # Ensure the credentials are refreshed and log token info
-        auth_req = GoogleAuthRequest()
-        logger.info("Attempting to refresh credentials...")
-        credentials.refresh(auth_req)
-        logger.info("Credentials refreshed successfully.")
+        # For Gemini API, we don't need to refresh the token - it will be done automatically
+        # when the credentials are used to make a request
+        if "aiplatform" in str(scopes) or "cloud-platform" in str(scopes):
+            logger.info("Using Gemini API credentials without explicit refresh")
+            return credentials
 
-        if credentials.token:
-             token_preview = credentials.token[:10] + "..."
-             logger.info(f"Obtained access token starting with: {token_preview}")
-             if credentials.expired:
-                 logger.warning("Obtained token is reported as expired immediately after refresh.")
-             else:
-                 # Calculate expiry time if available
-                 expiry_time = getattr(credentials, 'expiry', None)
-                 if expiry_time:
-                     logger.info(f"Token expiry time: {expiry_time}")
-                 else:
-                     logger.info("Token expiry time not available in credentials object.")
-        else:
-             logger.warning("Credentials refreshed but no token was obtained.")
+        # For other APIs, refresh the token explicitly
+        try:
+            auth_req = GoogleAuthRequest()
+            logger.info("Attempting to refresh credentials...")
+            credentials.refresh(auth_req)
+            logger.info("Credentials refreshed successfully.")
 
+            if credentials.token:
+                token_preview = credentials.token[:10] + "..."
+                logger.info(f"Obtained access token starting with: {token_preview}")
+                if credentials.expired:
+                    logger.warning("Obtained token is reported as expired immediately after refresh.")
+                else:
+                    # Calculate expiry time if available
+                    expiry_time = getattr(credentials, 'expiry', None)
+                    if expiry_time:
+                        logger.info(f"Token expiry time: {expiry_time}")
+                    else:
+                        logger.info("Token expiry time not available in credentials object.")
+            else:
+                logger.warning("Credentials refreshed but no token was obtained.")
+        except Exception as refresh_error:
+            logger.warning(f"Token refresh failed, but continuing: {str(refresh_error)}")
+            # Continue with the credentials anyway, as they may still work
 
-        logger.info(f"Successfully obtained and refreshed credentials for service account.")
+        logger.info(f"Successfully obtained credentials for service account.")
         return credentials
 
     except Exception as e:
-        logger.error(f"Error getting or refreshing credentials: {str(e)}")
-        logger.error(traceback.format_exc()) # Log the full traceback
+        logger.error(f"Error getting credentials: {str(e)}")
+        logger.error(traceback.format_exc())
         return None
 
 # Paths to SSL certificate files
@@ -514,10 +523,9 @@ def call_apps_script(script_id, function_name, parameters):
     logger.info(f"Initiating call to Apps Script ID: {script_id}, Function: {function_name}")
     logger.debug(f"Apps Script parameters: {parameters}") # Log parameters at debug level
 
-    # --- Add scope definition and modify get_credentials call ---
+    # Get credentials for Apps Script API
     apps_script_scope = ["https://www.googleapis.com/auth/script.execute"]
-    credentials = get_credentials(scopes=apps_script_scope) # MODIFIED
-    # --- End modification ---
+    credentials = get_credentials(scopes=apps_script_scope)
 
     if not credentials:
         # get_credentials already logs the error extensively
@@ -841,10 +849,9 @@ def get_google_form_response(form_id, response_id):
     """Retrieves a specific response from a Google Form."""
     logger.info(f"Attempting to retrieve response {response_id} from form {form_id}")
 
-    # --- Add scope definition and modify get_credentials call ---
+    # Get credentials for Google Forms API
     forms_scope = ["https://www.googleapis.com/auth/forms.responses.readonly"]
-    credentials = get_credentials(scopes=forms_scope) # MODIFIED
-    # --- End modification ---
+    credentials = get_credentials(scopes=forms_scope)
 
     if not credentials:
         logger.error("Failed to get credentials for Google Forms API.")
@@ -955,11 +962,10 @@ def process_image_with_gemini(image_path, user_id):
     logger.info(f"Initiating Gemini API request for image from user_id: {user_id}")
 
     try:
-        # --- Use broader cloud-platform scope for Gemini ---
-        gemini_scope = ["https://www.googleapis.com/auth/cloud-platform"] # CHANGED SCOPE
+        # Use cloud-platform scope for Gemini
+        gemini_scope = ["https://www.googleapis.com/auth/cloud-platform"]
         credentials = get_credentials(scopes=gemini_scope)
-        # --- End modification ---
-
+        
         if not credentials:
             logger.error("Failed to get authenticated credentials")
             return None
@@ -1838,11 +1844,10 @@ def handle_callback_query(call):
         logger.info(f"Enviando a Gemini (first 500 chars): {prompt}")
         
         try:
-            # --- Use broader cloud-platform scope for Gemini ---
-            gemini_scope = ["https://www.googleapis.com/auth/cloud-platform"] # CHANGED SCOPE
+            # Use cloud-platform scope for Gemini
+            gemini_scope = ["https://www.googleapis.com/auth/cloud-platform"]
             credentials = get_credentials(scopes=gemini_scope)
-            # --- End modification ---
-
+            
             if not credentials:
                 bot.edit_message_text(
                     chat_id=call.message.chat.id,
