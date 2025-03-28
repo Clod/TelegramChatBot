@@ -1287,6 +1287,28 @@ def handle_callback_query(call):
         form_data, error_message = get_google_form_response(GOOGLE_FORM_ID, response_id)
 
         if form_data:
+            # --- START: Store retrieved form data as JSON in user_messages ---
+            try:
+                # Convert the form_data dictionary (returned by Google API) to a JSON string
+                form_data_json_string = json.dumps(form_data, indent=2, ensure_ascii=False)
+
+                # Connect to DB and insert the JSON string as a new message record
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("""
+                INSERT INTO user_messages (user_id, chat_id, message_id, message_text, message_type, has_media, media_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (user_id, chat_id, call.message.message_id, form_data_json_string, 'retrieved_form_data', False, None))
+                # Note: Using call.message.message_id associates this data with the message containing the button.
+                conn.commit()
+                conn.close()
+                logger.info(f"Stored retrieved form data JSON in user_messages for user {user_id}, associated with original message_id {call.message.message_id}")
+
+            except Exception as db_store_err:
+                logger.error(f"Error storing retrieved form data JSON in user_messages for user {user_id}: {db_store_err}", exc_info=True)
+                # Decide if you want to notify the user about this specific failure; currently, it only logs.
+            # --- END: Store retrieved form data ---
+
             # Success - Display the data (e.g., as JSON)
             try:
                 # Format the response data nicely (e.g., extract answers)
