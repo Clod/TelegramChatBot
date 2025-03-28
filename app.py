@@ -17,9 +17,12 @@ import time    # For generating timestamp-based message IDs
 import google.auth
 from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleAuthRequest
+import re # For regular expression matching
+from googleapiclient.discovery import build # For Google API client
+from googleapiclient.errors import HttpError # For Google API errors
 
-                                                                                                                          
-import getpass                                                                                                                       
+
+import getpass
 print(f"Effective UID: {os.geteuid()}")                                                                                              
 print(f"Effective User: {getpass.getuser()}")                                                                                        
 
@@ -84,6 +87,29 @@ GEMINI_API_ENDPOINT = os.environ.get(
     "https://LOCATION-aiplatform.googleapis.com/v1/projects/PROJECT_ID/locations/LOCATION/publishers/google/models/gemini-2.0-flash-lite:generateContent"
 )
 
+# Google Form configuration
+GOOGLE_FORM_URL = os.environ.get("GOOGLE_FORM_URL")
+GOOGLE_FORM_ID = None
+if GOOGLE_FORM_URL:
+    try:
+        # Extract the Form ID from the URL (assuming standard URL format)
+        parts = GOOGLE_FORM_URL.strip('/').split('/')
+        if 'forms' in parts and 'd' in parts:
+             form_id_index = parts.index('d') + 1
+             if form_id_index < len(parts):
+                 GOOGLE_FORM_ID = parts[form_id_index]
+                 logger.info(f"Extracted Google Form ID: {GOOGLE_FORM_ID}")
+             else:
+                 logger.error("Could not find Form ID in GOOGLE_FORM_URL structure.")
+        else:
+             logger.error("GOOGLE_FORM_URL does not seem to be a valid Google Form URL.")
+    except Exception as e:
+        logger.error(f"Error parsing GOOGLE_FORM_URL: {e}")
+
+if not GOOGLE_FORM_ID:
+    logger.warning("GOOGLE_FORM_ID could not be determined. Form retrieval will not work.")
+
+
 # Function to get authenticated credentials
 def get_credentials():
     """Get authenticated credentials from service account file"""
@@ -95,9 +121,12 @@ def get_credentials():
         # Create credentials from the service account file with the correct scope for Gemini API
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE,
-            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+            scopes=[
+                "https://www.googleapis.com/auth/cloud-platform",
+                "https://www.googleapis.com/auth/forms.responses.readonly" # <-- ADD THIS LINE
+            ]
         )
-        
+
         # Ensure the credentials are refreshed
         auth_req = GoogleAuthRequest()
         credentials.refresh(auth_req)
@@ -468,11 +497,10 @@ def generate_main_menu():
     
     # Add buttons to the markup
     markup.add(
-        InlineKeyboardButton("📊 Analyze My Messages", callback_data="menu1"),  # Updated label
-        InlineKeyboardButton("Menu 2", callback_data="menu2")   # Second button
-        # callback_data is what the bot receives when a user clicks the button
+        InlineKeyboardButton("📊 Analyze My Messages", callback_data="menu1"),
+        InlineKeyboardButton("📄 Retrieve Form Data", callback_data="retrieve_form"), # <-- ADD THIS LINE
+        InlineKeyboardButton("Menu 2", callback_data="menu2")
     )
-    
     # Add data management buttons in new rows
     markup.add(
         InlineKeyboardButton("📊 View My Data", callback_data="view_my_data")  # View data button
@@ -1156,10 +1184,88 @@ def handle_callback_query(call):
             'data': {},
             'preferences': prefs
         }
-    
     # Check which button was clicked by examining the callback_data
-    
-    if call.data == "view_my_data":
+
+    if call.data == "retrieve_form":
+        logger.info(f"User {user_id}: Clicked 'Retrieve Form Data'")
+        log_interaction(user_id, "button_click", call.data)
+
+        # Check if Form ID is configured
+        if not GOOGLE_FORM_ID:
+            bot.answer_callback_query(call.id, "Form retrieval is not configured.", show_alert=True)
+            logger.warning("Retrieve form called, but GOOGLE_FORM_ID is not set.")
+            # Optionally edit message back to main menu if needed
+            # bot.edit_message_text(...)
+            return # Stop processing
+
+        # Send processing message
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="Searching for form response ID in your recent messages..."
+        )
+
+        # 1. Find the response ID
+        response_id = find_form_response_id(user_id)
+
+        if not response_id:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="Could not find a message with 'format=<number>' in your recent history.",
+                reply_markup=generate_main_menu()
+            )
+            return # Stop processing
+
+        # 2. Retrieve the form data
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=f"Found ID: {response_id}. Retrieving data from Google Form..."
+        )
+
+        form_data, error_message = get_google_form_response(GOOGLE_FORM_ID, response_id)
+
+        if form_data:
+            # Success - Display the data (e.g., as JSON)
+            try:
+                # Format the response data nicely (e.g., extract answers)
+                # For now, just display the raw JSON, truncated if too long
+                response_text = json.dumps(form_data, indent=2, ensure_ascii=False)
+                display_text = f"📄 Form Response Data (ID: {response_id}):\n\n```json\n{response_text}\n```"
+
+                if len(display_text) > 4000: # Keep under Telegram limit, accounting for markdown
+                    display_text = display_text[:4000] + "... (truncated)\n```"
+
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text=display_text,
+                    reply_markup=generate_main_menu(),
+                    parse_mode="Markdown" # Use Markdown for code block
+                )
+                log_interaction(user_id, "form_retrieval_success", {'response_id': response_id})
+
+            except Exception as display_e:
+                 logger.error(f"Error formatting/displaying form data: {display_e}", exc_info=True)
+                 bot.edit_message_text(
+                     chat_id=call.message.chat.id,
+                     message_id=call.message.message_id,
+                     text=f"Successfully retrieved data for response {response_id}, but failed to display it.",
+                     reply_markup=generate_main_menu()
+                 )
+
+        else:
+            # Failure - Display error message
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=f"❌ Failed to retrieve form data:\n{error_message}",
+                reply_markup=generate_main_menu()
+            )
+            log_interaction(user_id, "form_retrieval_failed", {'response_id': response_id, 'error': error_message})
+
+    elif call.data == "view_my_data":
         # User clicked the "View My Data" button
         logger.info(f"User {user_id}: Requested to view their data")
         
