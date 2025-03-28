@@ -88,26 +88,12 @@ GEMINI_API_ENDPOINT = os.environ.get(
 )
 
 # Google Form configuration
-GOOGLE_FORM_URL = os.environ.get("GOOGLE_FORM_URL")
-GOOGLE_FORM_ID = None
-if GOOGLE_FORM_URL:
-    try:
-        # Extract the Form ID from the URL (assuming standard URL format)
-        parts = GOOGLE_FORM_URL.strip('/').split('/')
-        if 'forms' in parts and 'd' in parts:
-             form_id_index = parts.index('d') + 1
-             if form_id_index < len(parts):
-                 GOOGLE_FORM_ID = parts[form_id_index]
-                 logger.info(f"Extracted Google Form ID: {GOOGLE_FORM_ID}")
-             else:
-                 logger.error("Could not find Form ID in GOOGLE_FORM_URL structure.")
-        else:
-             logger.error("GOOGLE_FORM_URL does not seem to be a valid Google Form URL.")
-    except Exception as e:
-        logger.error(f"Error parsing GOOGLE_FORM_URL: {e}")
+GOOGLE_FORM_ID = os.environ.get("GOOGLE_FORM_ID")
 
 if not GOOGLE_FORM_ID:
-    logger.warning("GOOGLE_FORM_ID could not be determined. Form retrieval will not work.")
+    logger.warning("GOOGLE_FORM_ID could not be retrieved. Form retrieval will not work.")
+else:
+    logger.info("GOOLGE_FORM_ID retrieved successfully: " + GOOGLE_FORM_ID)
 
 
 # Function to get authenticated credentials
@@ -624,8 +610,8 @@ def send_welcome(message):
 
 
 def find_form_response_id(user_id, search_limit=20):
-    """Search recent user messages for the format=ID pattern."""
-    logger.info(f"Searching for 'format=<ID>' in last {search_limit} messages for user {user_id}")
+    """Search recent user messages for the form=ID pattern."""
+    logger.info(f"Searching for 'form=<ID>' in last {search_limit} messages for user {user_id}")
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -637,7 +623,7 @@ def find_form_response_id(user_id, search_limit=20):
     """, (user_id, search_limit))
 
     response_id = None
-    pattern = re.compile(r"format=(\d+)", re.IGNORECASE) # Pattern: format= followed by digits
+    pattern = re.compile(r"form=(\d+)", re.IGNORECASE) # Pattern: form= followed by digits
 
     for row in cursor.fetchall():
         message_text = row[0]
@@ -1286,7 +1272,7 @@ def handle_callback_query(call):
             bot.edit_message_text(
                 chat_id=call.message.chat.id,
                 message_id=call.message.message_id,
-                text="Could not find a message with 'format=<number>' in your recent history.",
+                text="Could not find a message with 'form=<number>' in your recent history.",
                 reply_markup=generate_main_menu()
             )
             return # Stop processing
