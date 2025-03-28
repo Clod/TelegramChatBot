@@ -95,35 +95,66 @@ if not GOOGLE_FORM_ID:
 else:
     logger.info("GOOLGE_FORM_ID retrieved successfully: " + GOOGLE_FORM_ID)
 
+# Apps Script configuration
+APPS_SCRIPT_ID = os.environ.get("APPS_SCRIPT_ID")
+if not APPS_SCRIPT_ID:
+    logger.warning("APPS_SCRIPT_ID environment variable is not set. Google Sheet retrieval will not work.")
+else:
+    logger.info(f"APPS_SCRIPT_ID retrieved successfully: {APPS_SCRIPT_ID}")
+
 
 # Function to get authenticated credentials
 def get_credentials():
     """Get authenticated credentials from service account file"""
+    logger.info("Attempting to get credentials...") # Log start
     try:
         if not SERVICE_ACCOUNT_FILE or not os.path.exists(SERVICE_ACCOUNT_FILE):
-            logger.error("Service account file not found")
+            logger.error(f"Service account file not found at path: {SERVICE_ACCOUNT_FILE}")
             return None
-            
-        # Create credentials from the service account file with the correct scope for Gemini API
+
+        # Define the required scopes
+        required_scopes = [
+            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/forms.responses.readonly",
+            "https://www.googleapis.com/auth/script.execute" # <-- ADD THIS LINE
+        ]
+        logger.info(f"Requesting credentials with scopes: {required_scopes}")
+
+        # Create credentials from the service account file
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE,
-            scopes=[
-                "https://www.googleapis.com/auth/cloud-platform",
-                "https://www.googleapis.com/auth/forms.responses.readonly" # <-- ADD THIS LINE
-            ]
+            scopes=required_scopes
         )
+        logger.info(f"Credentials object created from file: {SERVICE_ACCOUNT_FILE}")
 
-        # Ensure the credentials are refreshed
+        # Ensure the credentials are refreshed and log token info
         auth_req = GoogleAuthRequest()
+        logger.info("Attempting to refresh credentials...")
         credentials.refresh(auth_req)
-        
-        # Log successful authentication
-        logger.info(f"Successfully obtained credentials for service account")
-        
+        logger.info("Credentials refreshed successfully.")
+
+        if credentials.token:
+             token_preview = credentials.token[:10] + "..."
+             logger.info(f"Obtained access token starting with: {token_preview}")
+             if credentials.expired:
+                 logger.warning("Obtained token is reported as expired immediately after refresh.")
+             else:
+                 # Calculate expiry time if available
+                 expiry_time = getattr(credentials, 'expiry', None)
+                 if expiry_time:
+                     logger.info(f"Token expiry time: {expiry_time}")
+                 else:
+                     logger.info("Token expiry time not available in credentials object.")
+        else:
+             logger.warning("Credentials refreshed but no token was obtained.")
+
+
+        logger.info(f"Successfully obtained and refreshed credentials for service account.")
         return credentials
+
     except Exception as e:
-        logger.error(f"Error getting credentials: {str(e)}")
-        logger.error(traceback.format_exc())
+        logger.error(f"Error getting or refreshing credentials: {str(e)}")
+        logger.error(traceback.format_exc()) # Log the full traceback
         return None
 
 # Paths to SSL certificate files
@@ -475,6 +506,88 @@ def delete_user_data(user_id):
     finally:
         conn.close()
 
+def call_apps_script(script_id, function_name, parameters):
+    """Calls a Google Apps Script function with extensive logging."""
+    logger.info(f"Initiating call to Apps Script ID: {script_id}, Function: {function_name}")
+    logger.debug(f"Apps Script parameters: {parameters}") # Log parameters at debug level
+
+    credentials = get_credentials()
+    if not credentials:
+        # get_credentials already logs the error extensively
+        logger.error("Failed to obtain credentials for Apps Script call.")
+        return None, "Authentication failed. Could not get credentials."
+
+    # Log credential details (avoid logging full token)
+    logger.info(f"Using credentials for service account: {credentials.service_account_email}")
+    logger.debug(f"Credentials valid: {credentials.valid}, Scopes: {credentials.scopes}")
+
+    try:
+        logger.info("Building Apps Script API service (script, v1)...")
+        service = build('script', 'v1', credentials=credentials)
+        logger.info("Apps Script API service built successfully.")
+
+        # Create the request body
+        request = {
+            'function': function_name,
+            'parameters': parameters,
+            'devMode': False  # Set to True only if debugging the Apps Script itself
+        }
+        logger.info(f"Executing Apps Script function '{function_name}'...")
+        logger.debug(f"Apps Script request body: {request}")
+
+        # Make the API call to run the script
+        response = service.scripts().run(scriptId=script_id, body=request).execute()
+        logger.info(f"Received response from Apps Script execution.")
+        logger.debug(f"Raw Apps Script response: {response}") # Log raw response at debug level
+
+        # Check for errors returned by the Apps Script execution itself
+        if 'error' in response:
+            error_details = response['error'].get('details', [{}])[0]
+            error_message = error_details.get('errorMessage', 'Unknown script execution error')
+            error_type = error_details.get('errorType', 'UnknownType')
+            script_stack_trace = error_details.get('scriptStackTraceElements', [])
+
+            logger.error(f"Apps Script execution error: Type={error_type}, Message={error_message}")
+            if script_stack_trace:
+                logger.error(f"Apps Script Stacktrace: {script_stack_trace}")
+
+            # Provide a more user-friendly message based on common issues
+            if "Authorization is required" in error_message or "Script has attempted to perform an action" in error_message:
+                 user_error = "Authorization error within the Apps Script. Ensure the script has the necessary permissions."
+            elif "not found" in error_message: # Function or variable not found
+                 user_error = f"Error within the Apps Script: '{function_name}' or related code not found."
+            else:
+                 user_error = f"Error during script execution: {error_message}"
+            return None, user_error
+
+        # Extract the result if execution was successful
+        result = response.get('response', {}).get('result')
+        logger.info(f"Apps Script execution successful. Result type: {type(result)}")
+        logger.debug(f"Apps Script result: {result}") # Log result at debug level
+        return result, None # Return result and no error
+
+    except HttpError as http_error:
+        status_code = http_error.resp.status
+        error_content = http_error.content.decode('utf-8')
+        logger.error(f"HTTP error calling Apps Script API: Status={status_code}, Response={error_content}", exc_info=True)
+
+        # Provide specific user messages based on HTTP status code
+        if status_code == 401: # Unauthorized
+            user_error = "Authentication failed (401). Check service account credentials and API access."
+        elif status_code == 403: # Forbidden
+            user_error = "Permission denied (403). Ensure the Apps Script API is enabled and the service account has permission to execute the script."
+        elif status_code == 404: # Not Found
+            user_error = f"Apps Script project (ID: {script_id}) not found (404)."
+        elif status_code == 429: # Rate Limited
+             user_error = "API rate limit exceeded (429). Please try again later."
+        else:
+            user_error = f"API error occurred ({status_code}). Check logs for details."
+        return None, user_error
+
+    except Exception as e:
+        logger.error(f"Unexpected error calling Apps Script: {e}", exc_info=True)
+        return None, "An unexpected error occurred while communicating with the Apps Script service."
+
 # Function to create the main menu with interactive buttons
 def generate_main_menu():
     # Create a new inline keyboard markup (buttons that appear in the message)
@@ -484,7 +597,8 @@ def generate_main_menu():
     # Add buttons to the markup
     markup.add(
         InlineKeyboardButton("📊 Analyze My Messages", callback_data="menu1"),
-        InlineKeyboardButton("📄 Retrieve Form Data", callback_data="retrieve_form"), # <-- ADD THIS LINE
+        InlineKeyboardButton("📄 Retrieve Form Data", callback_data="retrieve_form"),
+        InlineKeyboardButton("📈 Retrieve Sheet Data", callback_data="retrieve_sheet_data"), # <-- ADD THIS LINE
         InlineKeyboardButton("Menu 2", callback_data="menu2")
     )
     # Add data management buttons in new rows
@@ -1346,6 +1460,88 @@ def handle_callback_query(call):
                 reply_markup=generate_main_menu()
             )
             log_interaction(user_id, "form_retrieval_failed", {'response_id': response_id, 'error': error_message})
+
+    elif call.data == "retrieve_sheet_data":
+        logger.info(f"User {user_id}: Clicked 'Retrieve Sheet Data'")
+        log_interaction(user_id, "button_click", call.data)
+
+        # Check if Apps Script ID is configured
+        if not APPS_SCRIPT_ID:
+            bot.answer_callback_query(call.id, "Sheet retrieval via Apps Script is not configured.", show_alert=True)
+            logger.warning("Retrieve sheet data called, but APPS_SCRIPT_ID is not set.")
+            return # Stop processing
+
+        # Send processing message
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text="Searching for ID (form=<number>) in your recent messages..."
+        )
+
+        # 1. Find the ID to search for (reuse the form ID finding logic)
+        id_to_find = find_form_response_id(user_id) # Reusing the function as the pattern is the same
+
+        if not id_to_find:
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text="Could not find a message with 'form=<number>' in your recent history to use as the ID.",
+                reply_markup=generate_main_menu()
+            )
+            return # Stop processing
+
+        # 2. Call the Apps Script function
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=f"Found ID: {id_to_find}. Retrieving data from Google Sheet via Apps Script..."
+        )
+
+        # Call the Apps Script function getRowByIdAsJson(idToFind)
+        # Note: Apps Script parameters must be passed as a list
+        sheet_data, error_message = call_apps_script(
+            APPS_SCRIPT_ID,
+            "getRowByIdAsJson",
+            [id_to_find] # Pass the ID as a list element
+        )
+
+        if sheet_data is not None: # Check if data was returned (could be empty JSON {} or [])
+            # Success - Display the data (assuming it's JSON)
+            try:
+                # Format the response data nicely (as JSON)
+                response_text = json.dumps(sheet_data, indent=2, ensure_ascii=False)
+                display_text = f"📈 Sheet Data (ID: {id_to_find}):\n\n```json\n{response_text}\n```"
+
+                if len(display_text) > 4000: # Keep under Telegram limit
+                    display_text = display_text[:4000] + "... (truncated)\n```"
+
+                bot.edit_message_text(
+                    chat_id=call.message.chat.id,
+                    message_id=call.message.message_id,
+                    text=display_text,
+                    reply_markup=generate_main_menu(),
+                    parse_mode="Markdown" # Use Markdown for code block
+                )
+                log_interaction(user_id, "sheet_retrieval_success", {'id_found': id_to_find})
+
+            except Exception as display_e:
+                 logger.error(f"Error formatting/displaying sheet data: {display_e}", exc_info=True)
+                 bot.edit_message_text(
+                     chat_id=call.message.chat.id,
+                     message_id=call.message.message_id,
+                     text=f"Successfully retrieved data for ID {id_to_find}, but failed to display it.",
+                     reply_markup=generate_main_menu()
+                 )
+
+        else:
+            # Failure - Display the specific error message from call_apps_script
+            bot.edit_message_text(
+                chat_id=call.message.chat.id,
+                message_id=call.message.message_id,
+                text=f"❌ Failed to retrieve sheet data:\n{error_message}",
+                reply_markup=generate_main_menu()
+            )
+            log_interaction(user_id, "sheet_retrieval_failed", {'id_found': id_to_find, 'error': error_message})
 
     elif call.data == "view_my_data":
         # User clicked the "View My Data" button
