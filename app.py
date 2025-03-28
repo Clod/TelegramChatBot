@@ -114,11 +114,11 @@ def get_credentials():
 
         # Define the required scopes
         required_scopes = [
-            "https://www.googleapis.com/auth/cloud-platform",
+            "https://www.googleapis.com/auth/aiplatform", # More specific scope for Gemini/Vertex AI
             "https://www.googleapis.com/auth/forms.responses.readonly",
-            "https://www.googleapis.com/auth/script.execute" # <-- ADD THIS LINE
+            "https://www.googleapis.com/auth/script.execute"
         ]
-        logger.info(f"Requesting credentials with scopes: {required_scopes}")
+        logger.info(f"Requesting credentials with refined scopes: {required_scopes}")
 
         # Create credentials from the service account file
         credentials = service_account.Credentials.from_service_account_file(
