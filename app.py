@@ -1575,21 +1575,8 @@ def handle_callback_query(call):
             )
             return # Stop processing
 
-        # 2. Call the Apps Script function
-        bot.edit_message_text(
-            chat_id=call.message.chat.id,
-            message_id=call.message.message_id,
-            text=f"Found ID: {id_to_find}. Retrieving data from Google Sheet via Apps Script..."
-        )
-
-        # Call the Apps Script function getRowByIdAsJson(idToFind)
-        # Note: Apps Script parameters must be passed as a list
-        sheet_data, error_message = call_apps_script(
-            APPS_SCRIPT_ID,
-            "getRowByIdAsJson",
-        )
-
-        # Call the Web App
+        # 2. Call the Web App to retrieve data
+        logger.info(f"Calling get_sheet_data_via_webapp for ID: {id_to_find}") # Modified log message
         sheet_data, error_message = get_sheet_data_via_webapp(id_to_find)
 
         if sheet_data is not None: # Check if data was returned (could be empty JSON {} or [])
