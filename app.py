@@ -1838,9 +1838,9 @@ def handle_callback_query(call):
         logger.info(f"Enviando a Gemini (first 500 chars): {prompt}")
         
         try:
-            # --- Add scope definition and modify get_credentials call ---
-            gemini_scope = ["https://www.googleapis.com/auth/aiplatform"]
-            credentials = get_credentials(scopes=gemini_scope) # MODIFIED
+            # --- Use broader cloud-platform scope for Gemini ---
+            gemini_scope = ["https://www.googleapis.com/auth/cloud-platform"] # CHANGED SCOPE
+            credentials = get_credentials(scopes=gemini_scope)
             # --- End modification ---
 
             if not credentials:
