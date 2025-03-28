@@ -1589,6 +1589,27 @@ def handle_callback_query(call):
         sheet_data, error_message = get_sheet_data_via_webapp(id_to_find)
 
         if sheet_data is not None: # Check if data was returned (could be empty JSON {} or [])
+            # --- START: Store retrieved sheet data as JSON in user_messages ---
+            try:
+                # Convert the sheet_data (already likely JSON/dict) to a formatted JSON string
+                sheet_data_json_string = json.dumps(sheet_data, indent=2, ensure_ascii=False)
+
+                # Connect to DB and insert the JSON string as a new message record
+                conn = sqlite3.connect(DB_PATH)
+                cursor = conn.cursor()
+                cursor.execute("""
+                INSERT INTO user_messages (user_id, chat_id, message_id, message_text, message_type, has_media, media_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (user_id, chat_id, call.message.message_id, sheet_data_json_string, 'retrieved_sheet_data', False, None))
+                # Note: Using call.message.message_id associates this data with the message containing the button.
+                conn.commit()
+                conn.close()
+                logger.info(f"Stored retrieved sheet data JSON in user_messages for user {user_id}, associated with original message_id {call.message.message_id}")
+
+            except Exception as db_store_err:
+                logger.error(f"Error storing retrieved sheet data JSON in user_messages for user {user_id}: {db_store_err}", exc_info=True)
+                # Decide if you want to notify the user about this specific failure; currently, it only logs.
+            # --- END: Store retrieved sheet data ---
             # Success - Display the data (assuming it's JSON)
             try:
                 # Format the response data nicely (as JSON)
