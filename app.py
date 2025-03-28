@@ -112,7 +112,7 @@ else:
 
 
 # Function to get authenticated credentials
-def get_credentials():
+def get_credentials(scopes): # NEW signature
     """Get authenticated credentials from service account file"""
     logger.info("Attempting to get credentials...") # Log start
     try:
@@ -120,18 +120,13 @@ def get_credentials():
             logger.error(f"Service account file not found at path: {SERVICE_ACCOUNT_FILE}")
             return None
 
-        # Define the required scopes
-        required_scopes = [
-            "https://www.googleapis.com/auth/aiplatform", # More specific scope for Gemini/Vertex AI
-            "https://www.googleapis.com/auth/forms.responses.readonly",
-            "https://www.googleapis.com/auth/script.execute"
-        ]
-        logger.info(f"Requesting credentials with refined scopes: {required_scopes}")
+        # Use the provided scopes argument
+        logger.info(f"Requesting credentials with scopes: {scopes}") # NEW log
 
-        # Create credentials from the service account file
+        # Create credentials from the service account file using the provided scopes
         credentials = service_account.Credentials.from_service_account_file(
             SERVICE_ACCOUNT_FILE,
-            scopes=required_scopes
+            scopes=scopes # Use the 'scopes' argument here
         )
         logger.info(f"Credentials object created from file: {SERVICE_ACCOUNT_FILE}")
 
@@ -519,7 +514,11 @@ def call_apps_script(script_id, function_name, parameters):
     logger.info(f"Initiating call to Apps Script ID: {script_id}, Function: {function_name}")
     logger.debug(f"Apps Script parameters: {parameters}") # Log parameters at debug level
 
-    credentials = get_credentials()
+    # --- Add scope definition and modify get_credentials call ---
+    apps_script_scope = ["https://www.googleapis.com/auth/script.execute"]
+    credentials = get_credentials(scopes=apps_script_scope) # MODIFIED
+    # --- End modification ---
+
     if not credentials:
         # get_credentials already logs the error extensively
         logger.error("Failed to obtain credentials for Apps Script call.")
@@ -841,7 +840,12 @@ def find_form_response_id(user_id, search_limit=20):
 def get_google_form_response(form_id, response_id):
     """Retrieves a specific response from a Google Form."""
     logger.info(f"Attempting to retrieve response {response_id} from form {form_id}")
-    credentials = get_credentials()
+
+    # --- Add scope definition and modify get_credentials call ---
+    forms_scope = ["https://www.googleapis.com/auth/forms.responses.readonly"]
+    credentials = get_credentials(scopes=forms_scope) # MODIFIED
+    # --- End modification ---
+
     if not credentials:
         logger.error("Failed to get credentials for Google Forms API.")
         return None, "Authentication failed."
@@ -949,10 +953,13 @@ def process_image_with_gemini(image_path, user_id):
     Returns: Parsed JSON response or None if processing failed
     """
     logger.info(f"Initiating Gemini API request for image from user_id: {user_id}")
-    
+
     try:
-        # Get authenticated credentials
-        credentials = get_credentials()
+        # --- Add scope definition and modify get_credentials call ---
+        gemini_scope = ["https://www.googleapis.com/auth/aiplatform"]
+        credentials = get_credentials(scopes=gemini_scope) # MODIFIED
+        # --- End modification ---
+
         if not credentials:
             logger.error("Failed to get authenticated credentials")
             return None
@@ -1831,8 +1838,11 @@ def handle_callback_query(call):
         logger.info(f"Enviando a Gemini (first 500 chars): {prompt}")
         
         try:
-            # Get credentials for Gemini API
-            credentials = get_credentials()
+            # --- Add scope definition and modify get_credentials call ---
+            gemini_scope = ["https://www.googleapis.com/auth/aiplatform"]
+            credentials = get_credentials(scopes=gemini_scope) # MODIFIED
+            # --- End modification ---
+
             if not credentials:
                 bot.edit_message_text(
                     chat_id=call.message.chat.id,
@@ -1841,13 +1851,26 @@ def handle_callback_query(call):
                     reply_markup=generate_main_menu()
                 )
                 return
-            
+
             # Prepare the request to Gemini
+            # --- Ensure credentials.token is accessed AFTER checking credentials is not None ---
+            # This was implicitly correct before, but good to be explicit
+            if not credentials.token:
+                 logger.error("Credentials obtained but token is missing after refresh.")
+                 # Handle error appropriately - maybe refresh again or return error message
+                 bot.edit_message_text(
+                     chat_id=call.message.chat.id,
+                     message_id=call.message.message_id,
+                     text="Authentication token issue. Please try again later.",
+                     reply_markup=generate_main_menu()
+                 )
+                 return
+
             headers = {
-                "Authorization": f"Bearer {credentials.token}",
+                "Authorization": f"Bearer {credentials.token}", # Now safe to access token
                 "Content-Type": "application/json"
             }
-            
+
             # Log token information (without revealing the full token)
             token_preview = credentials.token[:10] + "..." if credentials.token else "None"
             logger.info(f"Using token starting with: {token_preview}")
