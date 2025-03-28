@@ -961,7 +961,7 @@ def get_user_message_history(user_id, limit=10):
       AND message_text IS NOT NULL 
       AND message_text != '' 
       AND message_text != '/start' -- Exclude /start messages
-      AND (message_type = 'text' OR message_type = 'processed_text_from_image')
+      AND (message_type = 'text' OR message_type = 'processed_text_from_image' OR message_type = 'retrieved_sheet_data')
     ORDER BY timestamp DESC
     LIMIT ?
     """, (user_id, limit))
