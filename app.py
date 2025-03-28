@@ -616,10 +616,14 @@ def get_sheet_data_via_webapp(id_to_find):
         # For debugging ONLY, uncomment the next line:
         # logger.debug(f"Request URL: {target_url}?id={id_to_find}&apiKey={APPS_SCRIPT_API_KEY[:4]}...")
 
+        # --- START MODIFICATION ---
+        logger.info(f"Attempting requests.get to {target_url} with timeout=30...") # Add log BEFORE request
         # Make the GET request
-        response = requests.get(target_url, params=params, timeout=30) # Added timeout
+        response = requests.get(target_url, params=params, timeout=30) # Existing request
+        logger.info(f"requests.get call completed. Status code received: {response.status_code}") # Add log AFTER request
+        # --- END MODIFICATION ---
 
-        # Log basic response info
+        # Log basic response info (existing log)
         logger.info(f"Received response from Web App. Status: {response.status_code}, Content-Type: {response.headers.get('Content-Type')}")
         logger.debug(f"Raw response text (first 500 chars): {response.text[:500]}")
 
