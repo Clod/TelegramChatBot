@@ -622,6 +622,80 @@ def send_welcome(message):
         except Exception as send_error:
             logger.error(f"Failed to send error message to user {user_id} after initial error: {send_error}")
 
+
+def find_form_response_id(user_id, search_limit=20):
+    """Search recent user messages for the format=ID pattern."""
+    logger.info(f"Searching for 'format=<ID>' in last {search_limit} messages for user {user_id}")
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT message_text
+        FROM user_messages
+        WHERE user_id = ? AND message_text IS NOT NULL
+        ORDER BY timestamp DESC
+        LIMIT ?
+    """, (user_id, search_limit))
+
+    response_id = None
+    pattern = re.compile(r"format=(\d+)", re.IGNORECASE) # Pattern: format= followed by digits
+
+    for row in cursor.fetchall():
+        message_text = row[0]
+        match = pattern.search(message_text)
+        if match:
+            response_id = match.group(1) # Extract the digits
+            logger.info(f"Found response ID: {response_id} in message: '{message_text}'")
+            break # Stop after finding the first match
+
+    conn.close()
+    if not response_id:
+        logger.warning(f"Could not find 'format=<ID>' pattern for user {user_id}")
+    return response_id
+
+
+def get_google_form_response(form_id, response_id):
+    """Retrieves a specific response from a Google Form."""
+    logger.info(f"Attempting to retrieve response {response_id} from form {form_id}")
+    credentials = get_credentials()
+    if not credentials:
+        logger.error("Failed to get credentials for Google Forms API.")
+        return None, "Authentication failed."
+
+    try:
+        # Build the service object
+        service = build('forms', 'v1', credentials=credentials)
+
+        # Retrieve the response
+        result = service.forms().responses().get(
+            formId=form_id,
+            responseId=response_id
+        ).execute()
+
+        logger.info(f"Successfully retrieved form response {response_id}")
+        return result, None # Return data and no error
+
+    except HttpError as error:
+        error_details = error.resp.get('content', '{}')
+        try:
+             error_json = json.loads(error_details)
+             error_message = error_json.get('error', {}).get('message', 'Unknown API error')
+             status_code = error_json.get('error', {}).get('code', error.resp.status)
+        except json.JSONDecodeError:
+             error_message = f"API Error (Status: {error.resp.status})"
+             status_code = error.resp.status
+
+        logger.error(f"Google Forms API error: {status_code} - {error_message}")
+        if status_code == 404:
+             return None, f"Response ID '{response_id}' not found in form '{form_id}'."
+        elif status_code == 403:
+             return None, "Permission denied. Ensure the service account has access to the form responses."
+        else:
+             return None, f"API Error: {error_message}"
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving form response: {e}", exc_info=True)
+        return None, "An unexpected error occurred."
+
+
 # Function to get user's message history
 def get_user_message_history(user_id, limit=10):
     """Get the message history for a specific user"""
