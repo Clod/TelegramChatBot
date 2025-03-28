@@ -102,6 +102,14 @@ if not APPS_SCRIPT_ID:
 else:
     logger.info(f"APPS_SCRIPT_ID retrieved successfully: {APPS_SCRIPT_ID}")
 
+# Apps Script Web App configuration
+APPS_SCRIPT_WEB_APP_URL = os.environ.get("APPS_SCRIPT_WEB_APP_URL")
+APPS_SCRIPT_API_KEY = os.environ.get("APPS_SCRIPT_API_KEY")
+if not APPS_SCRIPT_WEB_APP_URL or not APPS_SCRIPT_API_KEY:
+    logger.warning("APPS_SCRIPT_WEB_APP_URL or APPS_SCRIPT_API_KEY environment variable is not set. Google Sheet retrieval via Web App will not work.")
+else:
+    logger.info(f"APPS_SCRIPT_WEB_APP_URL retrieved successfully.") # Don't log the key itself
+
 
 # Function to get authenticated credentials
 def get_credentials():
@@ -587,6 +595,79 @@ def call_apps_script(script_id, function_name, parameters):
     except Exception as e:
         logger.error(f"Unexpected error calling Apps Script: {e}", exc_info=True)
         return None, "An unexpected error occurred while communicating with the Apps Script service."
+
+def get_sheet_data_via_webapp(id_to_find):
+    """Retrieves data from the Google Sheet via the deployed Apps Script Web App."""
+    logger.info(f"Initiating call to Apps Script Web App for ID: {id_to_find}")
+
+    # Check if configuration is available
+    if not APPS_SCRIPT_WEB_APP_URL or not APPS_SCRIPT_API_KEY:
+        logger.error("Web App URL or API Key is not configured.")
+        return None, "Web App retrieval is not configured on the server."
+
+    try:
+        # Construct the URL with query parameters
+        params = {
+            'id': id_to_find,
+            'apiKey': APPS_SCRIPT_API_KEY
+        }
+        target_url = APPS_SCRIPT_WEB_APP_URL
+        logger.info(f"Making GET request to Web App URL (parameters omitted for security)")
+        # For debugging ONLY, uncomment the next line:
+        # logger.debug(f"Request URL: {target_url}?id={id_to_find}&apiKey={APPS_SCRIPT_API_KEY[:4]}...")
+
+        # Make the GET request
+        response = requests.get(target_url, params=params, timeout=30) # Added timeout
+
+        # Log basic response info
+        logger.info(f"Received response from Web App. Status: {response.status_code}, Content-Type: {response.headers.get('Content-Type')}")
+        logger.debug(f"Raw response text (first 500 chars): {response.text[:500]}")
+
+        # Check for HTTP errors (4xx or 5xx)
+        response.raise_for_status()
+
+        # Check for specific text responses indicating errors from the script itself
+        if response.text == "Not Found":
+            logger.warning(f"Web App returned 'Not Found' for ID: {id_to_find}")
+            return None, f"ID '{id_to_find}' not found in the Google Sheet."
+        if response.text == "Unauthorized":
+            logger.error("Web App returned 'Unauthorized'. Check the API Key.")
+            return None, "Authorization failed. Invalid API Key provided to Web App."
+        if response.text == "Bad Request":
+             logger.error("Web App returned 'Bad Request'. Check if 'id' parameter is missing or invalid.")
+             return None, "Bad request sent to the Web App (e.g., missing ID)."
+
+        # Attempt to parse the JSON response
+        try:
+            json_result = response.json()
+            logger.info(f"Successfully parsed JSON response from Web App for ID: {id_to_find}")
+            return json_result, None # Return data and no error
+        except json.JSONDecodeError as json_err:
+            logger.error(f"Failed to decode JSON response from Web App: {json_err}")
+            logger.error(f"Response text was: {response.text}")
+            return None, "Received invalid data format from the Web App."
+
+    except requests.exceptions.Timeout:
+         logger.error(f"Request to Web App timed out for ID: {id_to_find}")
+         return None, "The request to the Web App timed out."
+    except requests.exceptions.RequestException as req_err:
+        logger.error(f"HTTP request error calling Web App: {req_err}", exc_info=True)
+        # Try to provide more specific feedback based on status code if available
+        status_code = getattr(req_err.response, 'status_code', None)
+        if status_code == 401: # Often means script requires login / incorrect sharing
+             user_error = "Web App access denied (401). Check script permissions/deployment settings."
+        elif status_code == 403: # Might mean API key mismatch or other permission issue
+             user_error = "Web App forbidden (403). Check API key or script access settings."
+        elif status_code == 404: # URL incorrect
+             user_error = "Web App URL not found (404). Check the configured URL."
+        elif status_code == 500: # Internal server error in the script
+             user_error = "Error within the Web App script (500). Check script logs."
+        else:
+             user_error = f"Network error communicating with the Web App: {req_err}"
+        return None, user_error
+    except Exception as e:
+        logger.error(f"Unexpected error retrieving data via Web App: {e}", exc_info=True)
+        return None, "An unexpected error occurred while contacting the Web App."
 
 # Function to create the main menu with interactive buttons
 def generate_main_menu():
@@ -1502,8 +1583,10 @@ def handle_callback_query(call):
         sheet_data, error_message = call_apps_script(
             APPS_SCRIPT_ID,
             "getRowByIdAsJson",
-            [id_to_find] # Pass the ID as a list element
         )
+
+        # Call the Web App
+        sheet_data, error_message = get_sheet_data_via_webapp(id_to_find)
 
         if sheet_data is not None: # Check if data was returned (could be empty JSON {} or [])
             # Success - Display the data (assuming it's JSON)
