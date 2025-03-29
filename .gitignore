@@ -69,4 +69,8 @@ flask_session/
 # pytest                                                                                                                                                                                                                                             
 .pytest_cache/                                                                                                                                                                                                                                       
 .coverage                                                                                                                                                                                                                                            
-htmlcov/  
+htmlcov/
+
+# Telethon session files
+*.session
+*.session-journal
