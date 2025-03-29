@@ -820,6 +820,22 @@ def send_main_menu_message(chat_id, text="Choose an option from the menu:"):
     except Exception as e:
         logger.error(f"Failed to send main menu message to chat {chat_id}: {e}")
 
+
+
+@bot.message_handler(commands=['generate_file'])
+def send_welcome(message):
+    chat_id = message.chat.id
+    
+    # Step 1: Generate a file with some content
+    file_name = "example.txt"
+    with open(file_name, "w") as file:
+        file.write("Hello! This is your generated file.\n")
+        file.write("This is an example of a Telegram bot sending files.")
+    
+    # Step 2: Send the file to the user
+    with open(file_name, "rb") as file:
+        bot.send_document(chat_id, file)
+        
 # Handler for /start and /help commands
 # This decorator tells the bot to call this function when users send these commands
 @bot.message_handler(commands=['start', 'help'])

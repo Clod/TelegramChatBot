@@ -1,0 +1,2 @@
+Hello! This is your generated file.
+This is an example of a Telegram bot sending files.
