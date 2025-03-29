@@ -14,6 +14,7 @@ api_id = os.getenv("TELEGRAM_API_ID")
 api_hash = os.getenv("TELEGRAM_API_HASH")
 phone = os.getenv("TELEGRAM_PHONE")
 bot_username = os.getenv("TELEGRAM_BOT_USERNAME")
+TEST_IMAGE_PATH = os.getenv("TEST_IMAGE_PATH", "test_image.jpg") # Default path if not set
 
 # Basic validation
 if not all([api_id, api_hash, phone, bot_username]):
@@ -209,3 +210,109 @@ async def test_inline_button_interaction(telegram_client):
             pytest.fail(f"An error occurred during inline button test: {e}")
 
 # Add more test cases as needed for other commands or interactions
+
+
+@pytest.mark.asyncio
+async def test_image_upload_and_process(telegram_client):
+    """Test uploading an image and clicking a button to process it."""
+    print(f"\nTesting image upload and processing with bot: {bot_username}")
+
+    # --- Configuration for this test ---
+    # *** Adjust BUTTON_TEXT_TO_CLICK based on your bot's actual button ***
+    BUTTON_TEXT_TO_CLICK = "Process Image" # <--- !!! IMPORTANT: CHANGE THIS !!!
+    # *** Adjust EXPECTED_RESPONSE_TEXT based on your bot's success message ***
+    EXPECTED_RESPONSE_TEXT = "Image processed successfully" # <--- !!! IMPORTANT: CHANGE THIS !!!
+    # ---
+
+    # 1. Check if the test image exists
+    if not os.path.exists(TEST_IMAGE_PATH):
+        pytest.fail(f"Test image not found at: {TEST_IMAGE_PATH}. Please set TEST_IMAGE_PATH environment variable.")
+
+    # Use a conversation for potentially cleaner interaction, though not strictly necessary for just sending/clicking
+    async with telegram_client.conversation(bot_username, timeout=30) as conv: # Increased timeout for processing
+        try:
+            # 2. Send the image file
+            print(f"Uploading image: {TEST_IMAGE_PATH}...")
+            await conv.send_file(
+                TEST_IMAGE_PATH,
+                caption="E2E Test: Please process this image."
+            )
+            print("Image sent.")
+
+            # 3. Wait briefly and look for the message containing the button
+            #    Assumption: The bot sends a *new* message with the button after receiving the image,
+            #    or maybe edits a status message. We'll look for a new message first.
+            await asyncio.sleep(3) # Give bot time to respond with button message
+
+            print(f"Looking for message with button text: '{BUTTON_TEXT_TO_CLICK}'...")
+            button_message = None
+            button_to_click = None # Initialize button_to_click here
+            clicked = False
+
+            # Check recent messages for the button
+            async for message in telegram_client.iter_messages(bot_username, limit=5):
+                # Ensure message is from the bot and has buttons
+                # Check sender_id against bot's ID if possible, or just ensure it's not 'me'
+                me = await telegram_client.get_me()
+                if message.sender_id != me.id and message.buttons: # Message from bot with buttons
+                    print(f"Checking message ID {message.id} from bot for buttons...")
+                    for row in message.buttons:
+                        for button in row:
+                            if isinstance(button, Button.Callback) and button.text == BUTTON_TEXT_TO_CLICK:
+                                print(f"Found button '{BUTTON_TEXT_TO_CLICK}' in message {message.id}.")
+                                button_message = message
+                                button_to_click = button # Assign the found button
+                                break
+                        if button_message: break
+                    if button_message: break
+
+            if not button_message or not button_to_click:
+                 # Fallback: Maybe the button is triggered by a command after upload?
+                 # If your bot requires sending a command like /processlast after upload, add that here.
+                 # Example:
+                 # print("Button not found immediately after upload. Sending /process command...")
+                 # await conv.send_message("/processlastimage") # Adjust command if needed
+                 # response_with_buttons = await conv.get_response()
+                 # ... find button in response_with_buttons ...
+
+                 # If still no button found after potential command:
+                 pytest.fail(f"Could not find message with button '{BUTTON_TEXT_TO_CLICK}' after sending image.")
+
+
+            # 4. Click the button
+            print(f"Clicking button with text: '{button_to_click.text}' and data: '{button_to_click.data}'")
+            try:
+                # Use the client directly to click the button on the specific message
+                click_result = await button_message.click(data=button_to_click.data)
+                # Or click by text if data is unreliable/unknown:
+                # click_result = await button_message.click(text=BUTTON_TEXT_TO_CLICK)
+                print("Button clicked.")
+                # Note: click_result might be None or a BotCallbackAnswer, not always useful for verification
+            except Exception as e:
+                pytest.fail(f"Error clicking button: {e}")
+
+
+            # 5. Verify the bot's response after clicking
+            print("Waiting for bot's processing confirmation message...")
+            await asyncio.sleep(10) # Wait longer for potential image processing
+
+            found_response = False
+            # Check recent messages again for the confirmation text
+            async for message in telegram_client.iter_messages(bot_username, limit=5):
+                 # Check messages from the bot only
+                 me = await telegram_client.get_me() # Get 'me' again just in case
+                 if message.sender_id != me.id and message.text:
+                     print(f"Checking bot message ID {message.id}: '{message.text[:100]}...'")
+                     if EXPECTED_RESPONSE_TEXT in message.text:
+                         print("Found expected response text!")
+                         found_response = True
+                         break # Stop checking once found
+
+            assert found_response, f"Did not find expected text '{EXPECTED_RESPONSE_TEXT}' in bot's recent responses after clicking process button."
+            print("Assertion passed: Bot confirmation received.")
+
+
+        except asyncio.TimeoutError:
+            pytest.fail("Timeout: Interaction sequence for image processing timed out.")
+        except Exception as e:
+            pytest.fail(f"An error occurred during image upload/process test: {e}")
