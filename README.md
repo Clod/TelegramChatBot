@@ -45,7 +45,7 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 1. User sends message to Telegram
 2. Telegram forwards message to webhook endpoint
 3. Flask receives the update and passes it to the bot handler
-4. Bot processes the message, updates the database, and manages user sessions
+4. Bot processes the message, updates the database, and manages user sessions (if the message is an image, the bot sends it to Gemini for it to OCR it and generate a JSON with its contents. Then the JSON is stored in the database as an extra message.)
 5. For AI/Google features, specialized authentication and API calls are made
 6. Response is sent back to the user via Telegram API
 
@@ -126,7 +126,7 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 ## Security Features
 
 - **Token Protection**: Bot token is loaded from environment variables
-- **SSL Encryption**: All communication is encrypted with HTTPS
+- **SSL Encryption**: All communication is encrypted with HTTPS (certificate and private key must be in certs directory)
 - **Error Handling**: Comprehensive error catching and logging
 - **Data Privacy**: Users can delete their own data
 - **Web App Authentication**: Validates Telegram initData for web app requests
@@ -197,3 +197,17 @@ Potential areas for expansion:
 - Analytics dashboard for user behavior
 - More Telegram Web App integrations
 - Enhanced Google Workspace integrations
+
+## Note about Google Forms retrieval implemention:
+The form needs to have a field named "id" that must be populated with a unique identifier for the data present in the form.
+To retrieve the data from the form and add it to the database, the user first has to send a message form=\<unique id number\>
+and then press the menu button to retrieve form data.
+
+To be able to retrieve data directly from Google Forms via API a paid Google Account is needed. As this project is aimed
+to non profit hospitals it uses a *horrible* workaround that allows form data retrieval for free. 
+
+To that end:
+
+- The form must be associated to a Google Sheet
+- The Google Sheet must have associated a Google Apps Script that retrieves the line corresponding to the form (identified by id).
+  Said script needs to be deployed as a Web App.  

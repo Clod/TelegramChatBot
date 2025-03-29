@@ -1,0 +1,10 @@
+DEBUG_MODE=False
+BASE_URL=https://precarina.com.ar
+TELEGRAM_BOT_TOKEN=:
+GEMINI_API_KEY=
+GEMINI_API_ENDPOINT=https://us-central1-aiplatform.googleapis.com/v1/projects/intro-gemini/locations/us-central1/publishers/google/models/gemini-2.0-flash-lite:streamGenerateContent
+GOOGLE_APPLICATION_CREDENTIALS=intro-gemini-c51ccc040972.json
+GOOGLE_FORM_ID=
+APPS_SCRIPT_ID=
+APPS_SCRIPT_WEB_APP_URL=https://script.google.com/macros/s/AKfycbzMwj2jtSCee-/exec
+APPS_SCRIPT_API_KEY=UnaApiKeyQueSeMeOcurra
