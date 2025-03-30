@@ -11,10 +11,12 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 - **User Session Management**: Tracks individual user states to prevent message mixing
 - **Database Storage**: Persistent storage of user data, messages, and interactions
 - **User Privacy Controls**: Users can delete their own data from the system
-- **Message History**: Shows users their previous message history
-- **Image Processing**: Analyzes images using Gemini 2.0 Lite API
-- **Google Form Integration**: Retrieves data from Google Forms
-- **Google Sheet Integration**: Retrieves data from Google Sheets via Apps Script
+- **Message History**: Stores user message history (text, processed images, form/sheet data, data entries)
+- **AI Text Analysis**: Automatically analyzes incoming text messages (non-commands, non-keywords) using Gemini API for context/answers. Also available via menu.
+- **Keyword Data Entry**: Recognizes messages starting with "dato" or "datos" (case-insensitive, optional colon) to store the subsequent text as structured data (`data_entry` type).
+- **Image Processing**: Analyzes images using Gemini API (OCR and JSON extraction).
+- **Google Form Integration**: Retrieves data from Google Forms based on IDs found in messages.
+- **Google Sheet Integration**: Retrieves data from Google Sheets via Apps Script Web App based on IDs found in messages.
 - **Web App Integration**: Allows users to edit their messages through Telegram Web Apps
 
 ### Technical Features
@@ -45,9 +47,15 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 1. User sends message to Telegram
 2. Telegram forwards message to webhook endpoint
 3. Flask receives the update and passes it to the bot handler
-4. Bot processes the message, updates the database, and manages user sessions (if the message is an image, the bot sends it to Gemini for it to OCR it and generate a JSON with its contents. Then the JSON is stored in the database as an extra message.)
-5. For AI/Google features, specialized authentication and API calls are made
-6. Response is sent back to the user via Telegram API
+4. Bot processes the message:
+    - Saves user info and logs interaction.
+    - If it's an image, downloads it, sends to Gemini for OCR/JSON extraction, saves results, and replies.
+    - If it starts with "dato[s][:]", strips the keyword, saves the content as `data_entry` type, confirms, and shows the menu.
+    - If it's a command (`/start`, `/help`), handles the command.
+    - If it's other text, saves it, then immediately triggers Gemini analysis including this message and recent history, replies with the analysis, and shows the menu.
+    - If it's a callback query (button press), handles the corresponding action (menu navigation, data retrieval, deletion, AI analysis).
+5. For AI/Google features, specialized authentication and API calls are made.
+6. Response (menu, confirmation, analysis result, data) is sent back to the user via Telegram API.
 
 ## Database Schema
 
@@ -72,9 +80,9 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 - `user_id`: References Users
 - `chat_id`: Chat where message was sent
 - `message_id`: Telegram message ID
-- `message_text`: Content of the message
-- `message_type`: Type of message (text, photo, processed_text_from_image, retrieved_form_data, retrieved_sheet_data)
-- `has_media`, `media_type`: Media information
+- `message_text`: Content of the message (or processed/retrieved data)
+- `message_type`: Type of message (`text`, `photo`, `processed_text_from_image`, `retrieved_form_data`, `retrieved_sheet_data`, `data_entry`)
+- `has_media`, `media_type`: Media information (based on original message if text is overridden)
 - `timestamp`: When message was received
 
 ### User Interactions Table
@@ -134,10 +142,11 @@ This is a comprehensive Telegram bot application built with Python, Flask, and t
 
 ## User Experience
 
-### Commands
-- `/start`, `/help`: Initialize the bot and show the main menu
-- Text messages: Automatically saved and history is displayed
-- Photos: Processed with Gemini 2.0 Lite API for detailed analysis
+### Commands & Message Handling
+- `/start`, `/help`: Initialize the bot and show the main menu.
+- **Text Messages (Keywords)**: Messages starting with `dato`, `datos`, `dato:`, or `datos:` (case-insensitive) have the keyword prefix removed, and the remaining content is saved as a `data_entry` message type. A confirmation is sent, followed by the main menu.
+- **Text Messages (Other)**: Regular text messages (not starting with keywords or '/') are saved and then immediately sent to the Gemini API (along with recent history) for analysis. The AI's response is sent back to the user, followed by the main menu.
+- **Photos**: Processed with Gemini API for OCR and structured data extraction (JSON format). The result is saved and sent to the user, followed by the main menu.
 
 ### Menu Navigation
 1. **Main Menu**: Choose between different options:
