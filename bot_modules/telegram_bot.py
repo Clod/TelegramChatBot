@@ -7,6 +7,7 @@ import uuid
 import json
 from datetime import datetime
 import traceback
+import re # Import re for regex matching
 
 # Import from other modules using relative paths
 from . import config
@@ -240,8 +241,28 @@ def handle_text(message):
     user_id = message.from_user.id
     chat_id = message.chat.id
     db.save_user(message.from_user, chat_id)
-    db.save_message(message)
-    db.log_interaction(user_id, s.DB_MESSAGE_TYPE_TEXT)
+
+    # --- Keyword Detection and Saving Logic ---
+    data_entry_keyword_pattern = re.compile(r"^(dato|datos)(:)?\s*", re.IGNORECASE)
+    match = data_entry_keyword_pattern.match(message.text)
+
+    if match:
+        # Keyword found, strip it and save as data_entry
+        keyword_length = match.end() # Get the length of the matched keyword part
+        data_content = message.text[keyword_length:].strip()
+        logger.info(f"Detected data entry keyword. Saving content: '{data_content[:50]}...'")
+        db.save_message(message, message_type_override=s.DB_MESSAGE_TYPE_DATA_ENTRY, text_override=data_content)
+        db.log_interaction(user_id, s.DB_MESSAGE_TYPE_DATA_ENTRY, {'original_text': message.text}) # Log type and original text
+        # Optionally, send a confirmation specific to data entry
+        bot.reply_to(message, "Data entry saved.") # Example confirmation
+        # Decide if you want to send the main menu after data entry or not
+        # send_main_menu_message(chat_id) # Uncomment if you want the menu after data entry
+        return # Stop further processing in this handler for data entry
+
+    # --- Default Text Handling (No Keyword Match) ---
+    # Save as regular text message
+    db.save_message(message) # No overrides needed, uses default text type
+    db.log_interaction(user_id, s.DB_MESSAGE_TYPE_TEXT) # Log as regular text interaction
 
     if message.text.startswith('/'):
         bot.reply_to(message, s.TEXT_UNKNOWN_COMMAND_USER_MSG)

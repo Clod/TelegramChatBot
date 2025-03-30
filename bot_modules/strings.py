@@ -59,6 +59,7 @@ DB_MESSAGE_TYPE_PHOTO = 'photo'
 DB_MESSAGE_TYPE_PROCESSED_IMAGE = 'processed_text_from_image'
 DB_MESSAGE_TYPE_RETRIEVED_FORM = 'retrieved_form_data'
 DB_MESSAGE_TYPE_RETRIEVED_SHEET = 'retrieved_sheet_data'
+DB_MESSAGE_TYPE_DATA_ENTRY = 'data_entry' # New type for 'dato[s]' messages
 
 # --- Google APIs ---
 LOG_GETTING_GEMINI_CREDS = "Attempting to get credentials for Gemini API..."

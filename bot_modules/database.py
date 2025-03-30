@@ -96,31 +96,54 @@ def log_interaction(user_id, action_type, action_data=None):
     conn.commit()
     conn.close()
 
-def save_message(message):
-    """Save a user message to the database"""
+def save_message(message, message_type_override=None, text_override=None):
+    """Save a user message to the database, allowing overrides for type and text."""
     user_id = message.from_user.id
-    chat_id = message.chat.id
     message_id = message.message_id
-    message_text = message.text if message.content_type == 'text' else None
-    message_type = message.content_type
-    has_media = message.content_type != 'text'
-    media_type = message.content_type if has_media else None
+
+    # Determine final message type and text
+    original_content_type = message.content_type
+    final_message_type = message_type_override if message_type_override else original_content_type
+
+    if text_override is not None:
+        final_message_text = text_override
+        # If text is overridden, it's not media, even if original was photo etc.
+        has_media = False
+        media_type = None
+        # Ensure the final_message_type reflects it's text-based if overridden
+        if final_message_type == s.DB_MESSAGE_TYPE_PHOTO: # Example: if original was photo but we save text
+             final_message_type = message_type_override or s.DB_MESSAGE_TYPE_TEXT # Use override or default text
+    elif original_content_type == s.DB_MESSAGE_TYPE_TEXT:
+        final_message_text = message.text
+        has_media = False
+        media_type = None
+    else: # Original message was media and no text override
+        final_message_text = None
+        has_media = True
+        media_type = original_content_type
+
+    # File ID logic remains the same (based on original content type)
     file_id = None
-    if message.content_type == 'photo' and message.photo:
-        file_id = message.photo[-1].file_id # Note: file_id is not currently saved in the schema, but logic is kept
+    if original_content_type == s.DB_MESSAGE_TYPE_PHOTO and message.photo:
+        file_id = message.photo[-1].file_id # Note: file_id is not currently saved in the schema
 
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
     INSERT INTO user_messages (user_id, chat_id, message_id, message_text, message_type, has_media, media_type)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-    """, (user_id, chat_id, message_id, message_text, message_type, has_media, media_type))
+    """, (user_id, chat_id, message_id, final_message_text, final_message_type, has_media, media_type))
     conn.commit()
     conn.close()
-    if message_text:
-        logger.info(s.LOG_DB_SAVED_MESSAGE.format(user_id=user_id, text_preview=message_text[:50]))
+
+    # Adjust logging based on final content
+    if final_message_text:
+        logger.info(s.LOG_DB_SAVED_MESSAGE.format(user_id=user_id, text_preview=final_message_text[:50]))
     else:
-        logger.info(s.LOG_DB_SAVED_MEDIA_MESSAGE.format(message_type=message_type, user_id=user_id))
+        # Log the original type if it was media and not overridden, otherwise log the final type
+        log_type = original_content_type if has_media and text_override is None else final_message_type
+        logger.info(s.LOG_DB_SAVED_MEDIA_MESSAGE.format(message_type=log_type, user_id=user_id))
+
 
 def save_processed_text(user_id, chat_id, original_message_id, text_to_save, message_type):
     """Saves processed text (like from Gemini, Forms, Sheets) to the user_messages table."""
