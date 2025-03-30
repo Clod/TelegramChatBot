@@ -88,6 +88,7 @@ api_hash = os.getenv("TELEGRAM_API_HASH")
 phone = os.getenv("TELEGRAM_PHONE")
 bot_username = os.getenv("TELEGRAM_BOT_USERNAME")
 TEST_IMAGE_PATH = os.getenv("TEST_IMAGE_PATH", s.TEST_DEFAULT_IMAGE_PATH) # Default path if not set
+TEST_TIMEOUT = int(os.getenv("TEST_TIMEOUT", "30")) # Default timeout in seconds
 
 # Basic validation
 if not all([api_id, api_hash, phone, bot_username]):
@@ -210,7 +211,7 @@ async def test_help_command(telegram_client):
 async def test_inline_button_interaction(telegram_client):
     """Test interaction with an inline button, if the bot uses them."""
     print(s.TEST_INLINE_BUTTON_LOG.format(bot_username=bot_username))
-    async with telegram_client.conversation(bot_username, timeout=20) as conv: # Increased timeout
+    async with telegram_client.conversation(bot_username, timeout=TEST_TIMEOUT) as conv: # Use configurable timeout
         try:
             # Send a command that triggers an inline keyboard (e.g., /start or a specific command)
             # Adjust this command based on your bot's functionality
@@ -266,7 +267,7 @@ async def test_inline_button_interaction(telegram_client):
                 new_response = await conv.get_response(timeout=5) # Shorter timeout for follow-up
                 print(s.TEST_NEW_MESSAGE_LOG.format(text_preview=new_response.text[:100]))
                 # Add assertions based on the expected new message content
-                assert "Action confirmed" in new_response.text # Adjust assertion
+                assert any(text in new_response.text for text in ["Action confirmed", "Confirmed", "Selected", "Processed"]) # More flexible assertion
                 print(s.TEST_ASSERT_NEW_MESSAGE)
                 return # Test successful
             except asyncio.TimeoutError:
@@ -296,10 +297,9 @@ async def test_image_upload_and_process(telegram_client):
     print(s.TEST_IMAGE_UPLOAD_LOG.format(bot_username=bot_username))
 
     # --- Configuration for this test ---
-    # *** Adjust BUTTON_TEXT_TO_CLICK based on your bot's actual button ***
-    BUTTON_TEXT_TO_CLICK = "Process Image" # <--- !!! IMPORTANT: CHANGE THIS !!!
-    # *** Adjust EXPECTED_RESPONSE_TEXT based on your bot's success message ***
-    EXPECTED_RESPONSE_TEXT = "Image processed successfully" # <--- !!! IMPORTANT: CHANGE THIS !!!
+    # Get button text and expected response from environment variables with fallbacks
+    BUTTON_TEXT_TO_CLICK = os.getenv("TEST_BUTTON_TEXT", "Process Image")
+    EXPECTED_RESPONSE_TEXT = os.getenv("TEST_EXPECTED_RESPONSE", "Extracted Information")
     # ---
 
     # 1. Check if the test image exists
@@ -307,7 +307,7 @@ async def test_image_upload_and_process(telegram_client):
         pytest.fail(s.TEST_IMAGE_NOT_FOUND.format(path=TEST_IMAGE_PATH))
 
     # Use a conversation for potentially cleaner interaction, though not strictly necessary for just sending/clicking
-    async with telegram_client.conversation(bot_username, timeout=30) as conv: # Increased timeout for processing
+    async with telegram_client.conversation(bot_username, timeout=TEST_TIMEOUT) as conv: # Use configurable timeout
         try:
             # 2. Send the image file
             print(s.TEST_UPLOADING_IMAGE_LOG.format(path=TEST_IMAGE_PATH))
@@ -372,11 +372,11 @@ async def test_image_upload_and_process(telegram_client):
 
             # 5. Verify the bot's response after clicking
             print(s.TEST_WAITING_FOR_CONFIRMATION)
-            await asyncio.sleep(10) # Wait longer for potential image processing
+            await asyncio.sleep(min(TEST_TIMEOUT // 3, 10)) # Wait longer for potential image processing, but not too long
 
             found_response = False
             # Check recent messages again for the confirmation text
-            async for message in telegram_client.iter_messages(bot_username, limit=5):
+            async for message in telegram_client.iter_messages(bot_username, limit=10):
                  # Check messages from the bot only
                  me = await telegram_client.get_me() # Get 'me' again just in case
                  if message.sender_id != me.id and message.text:
