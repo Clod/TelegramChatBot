@@ -251,7 +251,7 @@ def _trigger_gemini_analysis(user_id, chat_id, message_id_to_edit=None, latest_m
             processing_message_id = message_id_to_edit # Use the callback message ID for subsequent edits
 
         # Fetch history (include text messages for analysis)
-        messages = db.get_user_message_history(user_id, include_text=True, limit=20) # Ensure include_text=True
+        messages = db.get_user_message_history(user_id, include_text=False, limit=20) # Ensure include_text=True
 
         if not messages and not latest_message_text:
             bot.edit_message_text(s.CALLBACK_NO_MESSAGES_TO_ANALYZE, chat_id, processing_message_id, reply_markup=generate_main_menu())
