@@ -111,117 +111,6 @@ else:
     logger.info(f"APPS_SCRIPT_WEB_APP_URL retrieved successfully.") # Don't log the key itself
 
 
-# Split into two separate functions for different API types
-def get_credentials_for_gemini():
-    """Get authenticated credentials specifically for Gemini API"""
-    logger.info("Attempting to get credentials for Gemini API...")
-    try:
-        if not SERVICE_ACCOUNT_FILE or not os.path.exists(SERVICE_ACCOUNT_FILE):
-            logger.error(f"Service account file not found at path: {SERVICE_ACCOUNT_FILE}")
-            return None
-
-        # Try different scopes for Gemini API
-        scopes_to_try = [
-            ["https://www.googleapis.com/auth/cloud-platform"],
-            ["https://www.googleapis.com/auth/aiplatform"],
-            ["https://www.googleapis.com/auth/generative-ai"]
-        ]
-        
-        # Try each scope until one works
-        for scope in scopes_to_try:
-            logger.info(f"Trying Gemini credentials with scope: {scope}")
-            
-            try:
-                # Create credentials from the service account file
-                credentials = service_account.Credentials.from_service_account_file(
-                    SERVICE_ACCOUNT_FILE,
-                    scopes=scope
-                )
-                
-                # For Gemini, explicitly refresh the token
-                auth_req = GoogleAuthRequest()
-                logger.info(f"Refreshing Gemini credentials with scope: {scope}")
-                credentials.refresh(auth_req)
-                
-                # Check if we got a token
-                if credentials.token:
-                    token_preview = credentials.token[:10] + "..."
-                    logger.info(f"Successfully obtained Gemini access token starting with: {token_preview}")
-                    return credentials
-                else:
-                    logger.warning(f"No token obtained with scope: {scope}")
-            except Exception as e:
-                logger.warning(f"Failed to get token with scope {scope}: {str(e)}")
-                continue
-        
-        # If we get here, all scopes failed
-        logger.error("All Gemini API authentication attempts failed")
-        return None
-
-    except Exception as e:
-        logger.error(f"Error getting Gemini credentials: {str(e)}")
-        logger.error(traceback.format_exc())
-        return None
-
-def get_credentials_for_google_apis(scopes):
-    """Get authenticated credentials for Google APIs (Forms, Apps Script, etc.)"""
-    logger.info("Attempting to get credentials for Google APIs...")
-    try:
-        if not SERVICE_ACCOUNT_FILE or not os.path.exists(SERVICE_ACCOUNT_FILE):
-            logger.error(f"Service account file not found at path: {SERVICE_ACCOUNT_FILE}")
-            return None
-
-        # Use the provided scopes argument
-        logger.info(f"Requesting Google API credentials with scopes: {scopes}")
-
-        # Create credentials from the service account file using the provided scopes
-        credentials = service_account.Credentials.from_service_account_file(
-            SERVICE_ACCOUNT_FILE,
-            scopes=scopes
-        )
-        logger.info(f"Google API credentials object created from file: {SERVICE_ACCOUNT_FILE}")
-
-        # For Google APIs, refresh the token explicitly
-        try:
-            auth_req = GoogleAuthRequest()
-            logger.info("Attempting to refresh Google API credentials...")
-            credentials.refresh(auth_req)
-            logger.info("Google API credentials refreshed successfully.")
-
-            if credentials.token:
-                token_preview = credentials.token[:10] + "..."
-                logger.info(f"Obtained Google API access token starting with: {token_preview}")
-                if credentials.expired:
-                    logger.warning("Obtained token is reported as expired immediately after refresh.")
-                else:
-                    # Calculate expiry time if available
-                    expiry_time = getattr(credentials, 'expiry', None)
-                    if expiry_time:
-                        logger.info(f"Token expiry time: {expiry_time}")
-                    else:
-                        logger.info("Token expiry time not available in credentials object.")
-            else:
-                logger.warning("Google API credentials refreshed but no token was obtained.")
-        except Exception as refresh_error:
-            logger.warning(f"Token refresh failed, but continuing: {str(refresh_error)}")
-            # Continue with the credentials anyway, as they may still work
-
-        logger.info(f"Successfully obtained credentials for Google APIs.")
-        return credentials
-
-    except Exception as e:
-        logger.error(f"Error getting Google API credentials: {str(e)}")
-        logger.error(traceback.format_exc())
-        return None
-
-# Keep the original function for backward compatibility, but make it call the appropriate new function
-def get_credentials(scopes):
-    """Legacy function that routes to the appropriate credential getter based on scope"""
-    if any(platform in str(scopes) for platform in ["aiplatform", "cloud-platform", "generative-ai"]):
-        return get_credentials_for_gemini()
-    else:
-        return get_credentials_for_google_apis(scopes)
-
 # Paths to SSL certificate files
 # These are needed for secure HTTPS communication
 # WEBHOOK_SSL_CERT = "/etc/letsencrypt/live/precarina.com.ar/fullchain.pem"  # Public certificate
@@ -1233,26 +1122,6 @@ def extract_text_from_gemini_response(gemini_response):
         logger.error(f"Response type: {type(gemini_response)}")
         if isinstance(gemini_response, (dict, list)):
             logger.error(f"Response preview: {str(gemini_response)[:500]}")
-        traceback.print_exc()  # Print the full traceback for debugging
-        return "Error processing response"
-
-def cleanup_temp_file(file_path):
-    """
-    Delete a temporary file
-    """
-    logger.info(f"Initiating cleanup of temporary file: {file_path}")
-    
-    try:
-        if file_path and os.path.exists(file_path):
-            os.remove(file_path)
-            logger.info(f"Successfully deleted temporary file: {file_path}")
-            return True
-        return False
-    
-    except Exception as e:
-        logger.error(f"Error cleaning up temporary file: {str(e)}")
-        return False
-
 # Handler for photo messages
 @bot.message_handler(content_types=['photo'])
 def handle_photo(message):
@@ -2552,66 +2421,59 @@ def webapp_save_messages():
 # --- End Message Editing Web App Routes ---
 
 
-# Health check endpoint to verify the bot is working correctly
-@app.route('/health')
-def health_check():
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        # Get counts
-        cursor.execute("SELECT COUNT(*) FROM users")
-        user_count = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM user_messages")
-        message_count = cursor.fetchone()[0]
-        
-        cursor.execute("SELECT COUNT(*) FROM user_interactions")
-        interaction_count = cursor.fetchone()[0]
-        
-        conn.close()
-        
-        return jsonify({
-            'status': 'ok',  # Simple status indicator
-            'timestamp': datetime.now().isoformat(),  # Current time
-            'bot_info': bot.get_me().to_dict(),  # Information about the bot from Telegram
-            'db_status': 'ok' if os.path.exists(DB_PATH) else 'missing',
-            'service_account_status': 'ok' if (SERVICE_ACCOUNT_FILE and os.path.exists(SERVICE_ACCOUNT_FILE)) else 'missing',
-            'active_users': len(user_sessions),
-            'total_users': user_count,
-            'total_messages': message_count,
-            'total_interactions': interaction_count
-        })
-    except Exception as e:
-        logger.error(f"Error in health check: {str(e)}")
-        return jsonify({
-            'status': 'error',
-            'error': str(e),
-            'timestamp': datetime.now().isoformat()
-        }), 500
+# main.py (formerly app.py)
+import logging
+import os
+import getpass
+import traceback
+import telebot # Keep for ApiTelegramException
 
-# This code only runs if the script is executed directly (not imported)
+# Import from our modules
+from bot_modules import config
+from bot_modules.database import init_db
+from bot_modules.telegram_bot import bot # Import the initialized bot instance
+from bot_modules.flask_app import app # Import the initialized Flask app
+
+# --- Initial Logging Setup ---
+# Configure logging (this should be done early)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# Log effective user (optional, for debugging permissions)
+try:
+    logger.info(f"Effective UID: {os.geteuid()}")
+    logger.info(f"Effective User: {getpass.getuser()}")
+except Exception as e:
+    logger.warning(f"Could not get user info: {e}")
+
+# --- Database Initialization ---
+try:
+    init_db()
+except Exception as db_init_e:
+    logger.error(f"FATAL: Failed to initialize database: {db_init_e}", exc_info=True)
+    exit(1) # Exit if DB can't be initialized
+
+# --- Main Execution Logic ---
 if __name__ == '__main__':
-    # Determine if BASE_URL was inferred or explicitly set
-    inferred_base_url = "localhost" in BASE_URL or "127.0.0.1" in BASE_URL
+    inferred_base_url = "localhost" in config.BASE_URL or "127.0.0.1" in config.BASE_URL
 
-    if DEBUG_MODE:
+    if config.DEBUG_MODE:
         logger.info("Starting bot in DEBUG mode using polling...")
-        # Remove webhook if it was set previously
         try:
             logger.info("Attempting to remove existing webhook (if any)...")
             bot.remove_webhook()
             logger.info("Webhook removed successfully (or was not set).")
         except Exception as e:
-            # This is expected if no webhook was set, log as warning
             logger.warning(f"Could not remove webhook (may not have been set): {e}")
 
-        # Start polling (blocking call)
         logger.info("Bot polling started...")
-        # Note: Flask server is NOT started in polling mode by default.
-        # Web Apps will not be reachable unless you run Flask separately or use ngrok.
+        # Note: Flask server is NOT started automatically in polling mode.
+        # Web Apps and webhook routes will not be reachable unless Flask is run separately.
         try:
-            bot.infinity_polling(logger_level=logging.INFO) # Use configured logger level
+            bot.infinity_polling(logger_level=logging.INFO)
         except Exception as poll_e:
              logger.error(f"Polling failed: {poll_e}", exc_info=True)
         finally:
@@ -2619,82 +2481,63 @@ if __name__ == '__main__':
 
     else: # Production mode (DEBUG_MODE is False)
         logger.info("Starting bot in PRODUCTION mode using webhook...")
-        # CRITICAL Check: Ensure BASE_URL is set correctly for production
-        if inferred_base_url or not BASE_URL or not BASE_URL.startswith("https://"):
-             logger.error("FATAL: BASE_URL is not set, not HTTPS, or is local in production mode. Webhook/WebApps will fail.")
-             logger.error(f"Current BASE_URL: {BASE_URL}")
-             logger.error(f"Please set BASE_URL=https://precarina.com.ar (or your public domain) in your .env file.")
-             exit(1) # Exit if configuration is invalid for production
+        if inferred_base_url or not config.BASE_URL or not config.BASE_URL.startswith("https://"):
+             logger.error("FATAL: BASE_URL is not set, not HTTPS, or is local in production mode.")
+             logger.error(f"Current BASE_URL: {config.BASE_URL}")
+             exit(1)
 
-        # Remove any existing webhook first
         try:
             logger.info("Attempting to remove existing webhook...")
             bot.remove_webhook()
             logger.info("Webhook removed successfully.")
         except Exception as e:
             logger.error(f"Error removing webhook before setting new one: {e}")
-            # Decide if you want to proceed or exit; exiting is safer in production
             exit(1)
 
-        # Set the webhook
         try:
-            logger.info(f"Setting webhook to: {WEBHOOK_URL}")
-            # Check if cert files exist before trying to open them
-            cert_exists = os.path.exists(WEBHOOK_SSL_CERT)
-            if not cert_exists:
-                 logger.warning(f"SSL Certificate file not found at {WEBHOOK_SSL_CERT}. Setting webhook without certificate.")
+            logger.info(f"Setting webhook to: {config.WEBHOOK_URL}")
+            cert_exists = os.path.exists(config.WEBHOOK_SSL_CERT)
+            key_exists = os.path.exists(config.WEBHOOK_SSL_PRIV)
+            if not cert_exists or not key_exists:
+                 logger.warning(f"SSL Certificate or Key not found. Cert: {config.WEBHOOK_SSL_CERT}, Key: {config.WEBHOOK_SSL_PRIV}. Setting webhook without certificate parameter.")
 
-            # Set webhook *without* sending the certificate.
-            # This assumes SSL termination happens *before* Flask (e.g., by Nginx/Caddy).
-            # If Flask handles SSL directly (as implied by app.run with ssl_context),
-            # the certificate at WEBHOOK_SSL_CERT MUST be valid and trusted by Telegram.
-            bot.set_webhook(url=WEBHOOK_URL)
+            bot.set_webhook(url=config.WEBHOOK_URL) # No cert parameter needed if handled by reverse proxy
             logger.info("Webhook set successfully (without sending certificate parameter to Telegram).")
-            # Verify webhook status
             webhook_info_check = bot.get_webhook_info()
             logger.info(f"Webhook status check: URL='{webhook_info_check.url}', Pending Updates={webhook_info_check.pending_update_count}")
             if webhook_info_check.last_error_message:
                  logger.warning(f"Telegram reported webhook error: {webhook_info_check.last_error_message}")
 
         except telebot.apihelper.ApiTelegramException as e:
-             logger.error(f"FATAL: Failed to set webhook due to Telegram API error: {e}")
-             logger.error(f"Ensure BASE_URL ({BASE_URL}) is correct and publicly accessible via HTTPS.")
-             logger.error(traceback.format_exc())
-             exit(1) # Exit if webhook cannot be set
+             logger.error(f"FATAL: Failed to set webhook due to Telegram API error: {e}", exc_info=True)
+             exit(1)
         except Exception as e:
-            logger.error(f"FATAL: Failed to set webhook due to other error: {e}")
-            logger.error(traceback.format_exc())
-            exit(1) # Exit if webhook cannot be set
+            logger.error(f"FATAL: Failed to set webhook due to other error: {e}", exc_info=True)
+            exit(1)
 
         # Start the Flask web server
-        flask_port = int(os.environ.get("PORT", 443)) # Use PORT from env if set, else default 443
-        logger.info(f"Starting Flask server on 0.0.0.0:{flask_port} with SSL...")
+        logger.info(f"Starting Flask server on 0.0.0.0:{config.FLASK_PORT} with SSL...")
         try:
-            # Ensure cert files exist for Flask
-            if not os.path.exists(WEBHOOK_SSL_CERT) or not os.path.exists(WEBHOOK_SSL_PRIV):
+            if not os.path.exists(config.WEBHOOK_SSL_CERT) or not os.path.exists(config.WEBHOOK_SSL_PRIV):
                  logger.error("FATAL: SSL certificate or key file not found for Flask server.")
-                 logger.error(f"Cert path checked: {os.path.abspath(WEBHOOK_SSL_CERT)}")
-                 logger.error(f"Key path checked: {os.path.abspath(WEBHOOK_SSL_PRIV)}")
+                 logger.error(f"Cert path checked: {os.path.abspath(config.WEBHOOK_SSL_CERT)}")
+                 logger.error(f"Key path checked: {os.path.abspath(config.WEBHOOK_SSL_PRIV)}")
                  exit(1)
 
+            # Run Flask app using the imported 'app' instance
             app.run(
                 host='0.0.0.0',
-                port=flask_port,
-                ssl_context=(WEBHOOK_SSL_CERT, WEBHOOK_SSL_PRIV),
-                debug=False # Flask debug mode MUST be off in production
+                port=config.FLASK_PORT,
+                ssl_context=(config.WEBHOOK_SSL_CERT, config.WEBHOOK_SSL_PRIV),
+                debug=False # Flask debug MUST be off in production
             )
         except FileNotFoundError:
-             # This case is handled above, but kept for safety
              logger.error("FATAL: SSL certificate or key file not found during Flask startup.")
              exit(1)
         except OSError as e:
-             if "Address already in use" in str(e):
-                  logger.error(f"FATAL: Port {flask_port} is already in use. Stop the existing process or change the PORT environment variable.")
-             else:
-                  logger.error(f"FATAL: Failed to start Flask server due to OS error: {e}")
-                  logger.error(traceback.format_exc())
+             if "Address already in use" in str(e): logger.error(f"FATAL: Port {config.FLASK_PORT} is already in use.")
+             else: logger.error(f"FATAL: Failed to start Flask server due to OS error: {e}", exc_info=True)
              exit(1)
         except Exception as e:
-             logger.error(f"FATAL: Failed to start Flask server: {e}")
-             logger.error(traceback.format_exc())
+             logger.error(f"FATAL: Failed to start Flask server: {e}", exc_info=True)
              exit(1)
