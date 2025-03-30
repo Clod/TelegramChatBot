@@ -12,7 +12,7 @@ The script:
 4. If not authorized, requests a verification code to be sent to the user's phone
 5. Prompts the user to enter the code received
 6. Completes the sign-in process
-7. Creates a session file that can be reused by other scripts
+7. Creates a session file that can be reused by other scripts (./telegram_test_session.session)
 
 Environment variables required in .env file:
 - TELEGRAM_API_ID: Your Telegram API ID (integer)
