@@ -29,6 +29,11 @@ if BOT_USERNAME and not BOT_USERNAME.startswith('@'):
     BOT_USERNAME = '@' + BOT_USERNAME
 SESSION_NAME = "menu_test_session"
 
+# Define a global variable to store the bot entity
+BOT_ENTITY = None
+# Hardcoded bot ID from find_bot.py output as fallback
+BOT_ID = 8166772639
+
 # Skip all tests if credentials are missing
 pytestmark = pytest.mark.skipif(
     not all([API_ID, API_HASH, PHONE, BOT_USERNAME]),
@@ -76,13 +81,16 @@ async def telegram_client():
 async def test_main_menu(telegram_client):
     """Test that the main menu appears and has expected buttons."""
     # Send the /start command to get the main menu
-    await telegram_client.send_message(BOT_USERNAME, "/start")
+    # Use the bot entity if available, otherwise use the ID
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    await telegram_client.send_message(bot_target, "/start")
     
     # Wait briefly for the response
     await asyncio.sleep(2)
     
     # Get the most recent message from the bot
-    messages = await telegram_client.get_messages(BOT_USERNAME, limit=5)
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    messages = await telegram_client.get_messages(bot_target, limit=5)
     menu_message = None
     
     # Find the message with buttons
@@ -110,11 +118,14 @@ async def test_main_menu(telegram_client):
 async def test_help_button(telegram_client):
     """Test clicking the Help button in the main menu."""
     # First get the main menu
-    await telegram_client.send_message(BOT_USERNAME, "/start")
+    # Use the bot entity if available, otherwise use the ID
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    await telegram_client.send_message(bot_target, "/start")
     await asyncio.sleep(2)
     
     # Get the most recent message with buttons
-    messages = await telegram_client.get_messages(BOT_USERNAME, limit=5)
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    messages = await telegram_client.get_messages(bot_target, limit=5)
     menu_message = None
     for msg in messages:
         if msg.buttons:
@@ -142,7 +153,8 @@ async def test_help_button(telegram_client):
     await asyncio.sleep(2)
     
     # Check for help text in recent messages
-    recent_messages = await telegram_client.get_messages(BOT_USERNAME, limit=5)
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    recent_messages = await telegram_client.get_messages(bot_target, limit=5)
     help_received = False
     
     for msg in recent_messages:
@@ -157,7 +169,9 @@ async def test_help_button(telegram_client):
 async def test_settings_submenu(telegram_client):
     """Test that the settings submenu appears when clicking Settings."""
     # First get the main menu
-    await telegram_client.send_message(BOT_USERNAME, "/start")
+    # Use the bot entity if available, otherwise use the ID
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    await telegram_client.send_message(bot_target, "/start")
     await asyncio.sleep(2)
     
     # Get the most recent message with buttons
@@ -189,7 +203,8 @@ async def test_settings_submenu(telegram_client):
     await asyncio.sleep(2)
     
     # Check for settings submenu in recent messages
-    recent_messages = await telegram_client.get_messages(BOT_USERNAME, limit=5)
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    recent_messages = await telegram_client.get_messages(bot_target, limit=5)
     submenu_received = False
     
     for msg in recent_messages:
@@ -216,7 +231,9 @@ async def test_settings_submenu(telegram_client):
 async def test_back_button(telegram_client):
     """Test that the Back button returns to the main menu."""
     # First navigate to a submenu
-    await telegram_client.send_message(BOT_USERNAME, "/start")
+    # Use the bot entity if available, otherwise use the ID
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    await telegram_client.send_message(bot_target, "/start")
     await asyncio.sleep(2)
     
     # Get the main menu message
@@ -246,7 +263,8 @@ async def test_back_button(telegram_client):
     await asyncio.sleep(2)
     
     # Find the submenu message with Back button
-    messages = await telegram_client.get_messages(BOT_USERNAME, limit=5)
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    messages = await telegram_client.get_messages(bot_target, limit=5)
     submenu_message = None
     for msg in messages:
         if msg.buttons and msg.id != menu_message.id:
@@ -272,7 +290,8 @@ async def test_back_button(telegram_client):
     await asyncio.sleep(2)
     
     # Verify we're back at the main menu
-    messages = await telegram_client.get_messages(BOT_USERNAME, limit=5)
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    messages = await telegram_client.get_messages(bot_target, limit=5)
     back_to_main = False
     
     for msg in messages:
