@@ -20,6 +20,9 @@ API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 PHONE = os.getenv("TELEGRAM_PHONE", "")
 BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
+# Remove @ if it's included in the environment variable
+if BOT_USERNAME and BOT_USERNAME.startswith('@'):
+    BOT_USERNAME = BOT_USERNAME[1:]
 SESSION_NAME = "menu_test_session"
 
 # Skip all tests if credentials are missing
@@ -103,7 +106,7 @@ async def test_help_button(telegram_client):
     help_button = None
     for row in menu_message.buttons:
         for button in row:
-            if "Help" in button.text:  # Replace with your actual Help button text
+            if "Ayuda" in button.text:  # Updated for Spanish menu
                 help_button = button
                 break
         if help_button:
@@ -150,7 +153,7 @@ async def test_settings_submenu(telegram_client):
     settings_button = None
     for row in menu_message.buttons:
         for button in row:
-            if "Settings" in button.text:  # Replace with your actual Settings button text
+            if "Configuración" in button.text:  # Updated for Spanish menu
                 settings_button = button
                 break
         if settings_button:
@@ -181,7 +184,7 @@ async def test_settings_submenu(telegram_client):
             logger.info(f"Settings submenu buttons: {submenu_buttons}")
             
             # Verify expected submenu buttons (adjust based on your actual submenu)
-            expected_submenu = ["Preferences", "Back"]  # Replace with your actual submenu button names
+            expected_submenu = ["Preferencias", "Volver"]  # Updated for Spanish menu
             for expected in expected_submenu:
                 assert any(expected in btn for btn in submenu_buttons), f"Expected submenu button '{expected}' not found"
             break
@@ -209,7 +212,7 @@ async def test_back_button(telegram_client):
     submenu_button = None
     for row in menu_message.buttons:
         for button in row:
-            if "Settings" in button.text:  # Replace with actual submenu button
+            if "Configuración" in button.text:  # Updated for Spanish menu
                 submenu_button = button
                 break
         if submenu_button:
@@ -235,7 +238,7 @@ async def test_back_button(telegram_client):
     back_button = None
     for row in submenu_message.buttons:
         for button in row:
-            if "Back" in button.text:  # Replace with your actual Back button text
+            if "Volver" in button.text or "Atrás" in button.text:  # Updated for Spanish menu
                 back_button = button
                 break
         if back_button:
@@ -261,7 +264,7 @@ async def test_back_button(telegram_client):
                     main_menu_buttons.append(button.text)
             
             # If we find expected main menu buttons, we're back
-            if any("Help" in btn for btn in main_menu_buttons) and any("Settings" in btn for btn in main_menu_buttons):
+            if any("Ayuda" in btn for btn in main_menu_buttons) and any("Configuración" in btn for btn in main_menu_buttons):
                 back_to_main = True
                 break
     
