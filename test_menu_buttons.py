@@ -49,6 +49,23 @@ async def telegram_client():
         logger.info("Run a simple script with Telethon to log in before running tests.")
         pytest.skip("Authentication required")
     
+    # Try to resolve the bot username to make sure it's valid
+    logger.info(f"Testing connection to bot: {BOT_USERNAME}")
+    try:
+        # Use dialogs to find the bot instead of resolving username directly
+        dialogs = await client.get_dialogs()
+        bot_found = False
+        for dialog in dialogs:
+            if dialog.name and BOT_USERNAME.replace('@', '') in dialog.name.lower():
+                logger.info(f"Found bot in dialogs: {dialog.name}")
+                bot_found = True
+                break
+        
+        if not bot_found:
+            logger.warning(f"Bot {BOT_USERNAME} not found in recent dialogs. Tests may fail.")
+    except Exception as e:
+        logger.warning(f"Error checking bot existence: {e}")
+    
     # Return the connected client
     yield client
     
