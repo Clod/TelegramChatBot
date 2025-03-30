@@ -8,6 +8,11 @@ load_dotenv()
 API_ID = int(os.getenv("TELEGRAM_API_ID"))
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 PHONE = os.getenv("TELEGRAM_PHONE")
+BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
+# Always add @ if it's not included in the environment variable
+if BOT_USERNAME and not BOT_USERNAME.startswith('@'):
+    BOT_USERNAME = '@' + BOT_USERNAME
+print(f"Using bot username: {BOT_USERNAME}")
 SESSION_NAME = "menu_test_session"
 
 async def main():

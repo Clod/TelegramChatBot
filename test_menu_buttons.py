@@ -12,6 +12,10 @@ logging.basicConfig(level=logging.INFO,
                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# Enable more verbose logging for Telethon
+telethon_logger = logging.getLogger('telethon')
+telethon_logger.setLevel(logging.INFO)
+
 # Load environment variables
 load_dotenv()
 
@@ -20,9 +24,9 @@ API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
 API_HASH = os.getenv("TELEGRAM_API_HASH", "")
 PHONE = os.getenv("TELEGRAM_PHONE", "")
 BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
-# Remove @ if it's included in the environment variable
-if BOT_USERNAME and BOT_USERNAME.startswith('@'):
-    BOT_USERNAME = BOT_USERNAME[1:]
+# Always add @ if it's not included in the environment variable
+if BOT_USERNAME and not BOT_USERNAME.startswith('@'):
+    BOT_USERNAME = '@' + BOT_USERNAME
 SESSION_NAME = "menu_test_session"
 
 # Skip all tests if credentials are missing
