@@ -1,22 +1,23 @@
 import os
 import logging
+from . import strings as s # Import strings
 
 logger = logging.getLogger(__name__)
 
 def cleanup_temp_file(file_path):
     """Delete a temporary file"""
     if not file_path:
-        logger.debug("Cleanup skipped: No file path provided.")
+        logger.debug(s.LOG_CLEANUP_SKIPPED_NO_PATH)
         return False
-    logger.info(f"Initiating cleanup of temporary file: {file_path}")
+    logger.info(s.LOG_CLEANUP_INITIATED.format(path=file_path))
     try:
         if os.path.exists(file_path):
             os.remove(file_path)
-            logger.info(f"Successfully deleted temporary file: {file_path}")
+            logger.info(s.LOG_CLEANUP_SUCCESS.format(path=file_path))
             return True
         else:
-            logger.warning(f"Cleanup skipped: File not found at {file_path}")
+            logger.warning(s.WARN_CLEANUP_NOT_FOUND.format(path=file_path))
             return False
     except Exception as e:
-        logger.error(f"Error cleaning up temporary file {file_path}: {str(e)}")
+        logger.error(s.ERROR_CLEANUP_FAILED.format(path=file_path, error=str(e)))
         return False

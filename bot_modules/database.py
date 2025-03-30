@@ -2,7 +2,7 @@ import sqlite3
 import json
 import logging
 import re
-from . import config # Use relative import
+from . import config, strings as s # Use relative import
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +49,7 @@ def init_db():
     )''')
     conn.commit()
     conn.close()
-    logger.info("Database initialized successfully")
+    logger.info(s.LOG_DB_INIT_SUCCESS)
 
 def save_user(user, chat_id=None):
     """Save or update user information in the database"""
@@ -118,9 +118,9 @@ def save_message(message):
     conn.commit()
     conn.close()
     if message_text:
-        logger.info(f"Saved message from user {user_id}: {message_text[:50]}...")
+        logger.info(s.LOG_DB_SAVED_MESSAGE.format(user_id=user_id, text_preview=message_text[:50]))
     else:
-        logger.info(f"Saved {message_type} message from user {user_id}")
+        logger.info(s.LOG_DB_SAVED_MEDIA_MESSAGE.format(message_type=message_type, user_id=user_id))
 
 def save_processed_text(user_id, chat_id, original_message_id, text_to_save, message_type):
     """Saves processed text (like from Gemini, Forms, Sheets) to the user_messages table."""
@@ -133,9 +133,9 @@ def save_processed_text(user_id, chat_id, original_message_id, text_to_save, mes
         """, (user_id, chat_id, original_message_id, text_to_save, message_type, False, None))
         conn.commit()
         conn.close()
-        logger.info(f"Saved '{message_type}' text to user_messages for user {user_id}, original message_id {original_message_id}")
+        logger.info(s.LOG_DB_SAVED_PROCESSED_TEXT.format(message_type=message_type, user_id=user_id, original_message_id=original_message_id))
     except Exception as db_err:
-        logger.error(f"Error saving '{message_type}' text to user_messages for user {user_id}: {db_err}", exc_info=True)
+        logger.error(s.ERROR_DB_SAVING_PROCESSED_TEXT.format(message_type=message_type, user_id=user_id, db_err=db_err), exc_info=True)
 
 
 def get_user_preferences(user_id):
@@ -149,7 +149,7 @@ def get_user_preferences(user_id):
     if prefs:
         return dict(prefs)
     else:
-        return {'user_id': user_id, 'language': 'en', 'notifications': True, 'theme': 'default'}
+        return {'user_id': user_id, 'language': s.DB_DEFAULT_LANGUAGE, 'notifications': True, 'theme': s.DB_DEFAULT_THEME}
 
 def update_user_preference(user_id, preference_name, preference_value):
     """Update a specific user preference"""
@@ -210,11 +210,11 @@ def delete_user_data(user_id):
         cursor.execute("DELETE FROM user_preferences WHERE user_id = ?", (user_id,))
         cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
         conn.commit()
-        logger.info(f"Deleted user data for user_id {user_id}: {messages_deleted} messages, {interactions_deleted} interactions")
+        logger.info(s.LOG_DB_DELETED_USER_DATA.format(user_id=user_id, messages_deleted=messages_deleted, interactions_deleted=interactions_deleted))
         return True, messages_deleted, interactions_deleted
     except Exception as e:
         conn.rollback()
-        logger.error(f"Error deleting user data: {str(e)}")
+        logger.error(s.ERROR_DB_DELETING_USER_DATA.format(error=str(e)))
         return False, 0, 0
     finally:
         conn.close()
@@ -227,17 +227,17 @@ def get_user_message_history(user_id, limit=10):
     cursor.execute("""
     SELECT message_text, timestamp FROM user_messages
     WHERE user_id = ? AND message_text IS NOT NULL AND message_text != '' AND message_text != '/start'
-      AND (message_type = 'text' OR message_type = 'processed_text_from_image' OR message_type = 'retrieved_sheet_data' OR message_type = 'retrieved_form_data')
+      AND (message_type = ? OR message_type = ? OR message_type = ? OR message_type = ?)
     ORDER BY timestamp DESC LIMIT ?
-    """, (user_id, limit))
+    """, (user_id, s.DB_MESSAGE_TYPE_TEXT, s.DB_MESSAGE_TYPE_PROCESSED_IMAGE, s.DB_MESSAGE_TYPE_RETRIEVED_SHEET, s.DB_MESSAGE_TYPE_RETRIEVED_FORM, limit))
     messages = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    logger.info(f"Retrieved {len(messages)} messages for user {user_id}, including processed/retrieved data")
+    logger.info(s.LOG_DB_RETRIEVED_HISTORY.format(count=len(messages), user_id=user_id))
     return messages
 
 def save_image_processing_result(user_id, message_id, file_id, gemini_response_json):
     """Save the Gemini API response (as JSON string) to the database"""
-    logger.info(f"Initiating database storage for Gemini API response for user_id: {user_id}, message_id: {message_id}")
+    logger.info(s.LOG_DB_INITIATING_IMAGE_RESULT_STORAGE.format(user_id=user_id, message_id=message_id))
     try:
         conn = sqlite3.connect(DB_PATH)
         cursor = conn.cursor()
@@ -248,15 +248,15 @@ def save_image_processing_result(user_id, message_id, file_id, gemini_response_j
         record_id = cursor.lastrowid
         conn.commit()
         conn.close()
-        logger.info(f"Successfully stored Gemini API response in database (record ID: {record_id})")
+        logger.info(s.LOG_DB_IMAGE_RESULT_STORED.format(record_id=record_id))
         return True
     except Exception as e:
-        logger.error(f"Error saving image processing result to database: {str(e)}", exc_info=True)
+        logger.error(s.ERROR_DB_SAVING_IMAGE_RESULT.format(error=str(e)), exc_info=True)
         return False
 
 def find_form_response_id(user_id, search_limit=20):
     """Search recent user messages for the form=ID pattern."""
-    logger.info(f"Searching for 'form=<ID>' in last {search_limit} messages for user {user_id}")
+    logger.info(s.LOG_DB_SEARCHING_FORM_ID.format(search_limit=search_limit, user_id=user_id))
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
@@ -270,11 +270,11 @@ def find_form_response_id(user_id, search_limit=20):
         match = pattern.search(message_text)
         if match:
             response_id = match.group(1)
-            logger.info(f"Found response ID: {response_id} in message: '{message_text}'")
+            logger.info(s.LOG_DB_FOUND_FORM_ID.format(response_id=response_id, message_text=message_text))
             break
     conn.close()
     if not response_id:
-        logger.warning(f"Could not find 'form=<ID>' pattern for user {user_id}")
+        logger.warning(s.WARN_DB_FORM_ID_NOT_FOUND.format(user_id=user_id))
     return response_id
 
 # --- Functions for viewing data via Flask routes ---

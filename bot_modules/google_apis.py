@@ -9,77 +9,77 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from . import config # Use relative import
+from . import config, strings as s # Use relative import
 
 logger = logging.getLogger(__name__)
 
 # --- Credential Management ---
 def get_credentials_for_gemini():
     """Get authenticated credentials specifically for Gemini API"""
-    logger.info("Attempting to get credentials for Gemini API...")
+    logger.info(s.LOG_GETTING_GEMINI_CREDS)
     try:
         if not config.SERVICE_ACCOUNT_FILE or not os.path.exists(config.SERVICE_ACCOUNT_FILE):
-            logger.error(f"Service account file not found at path: {config.SERVICE_ACCOUNT_FILE}")
+            logger.error(s.ERROR_SERVICE_ACCOUNT_NOT_FOUND.format(path=config.SERVICE_ACCOUNT_FILE))
             return None
         scopes_to_try = [
-            ["https://www.googleapis.com/auth/cloud-platform"],
-            ["https://www.googleapis.com/auth/aiplatform"],
-            ["https://www.googleapis.com/auth/generative-ai"]
+            [s.API_SCOPE_CLOUD_PLATFORM],
+            [s.API_SCOPE_AI_PLATFORM],
+            [s.API_SCOPE_GENERATIVE_AI]
         ]
         for scope in scopes_to_try:
-            logger.info(f"Trying Gemini credentials with scope: {scope}")
+            logger.info(s.LOG_TRYING_GEMINI_SCOPE.format(scope=scope))
             try:
                 credentials = service_account.Credentials.from_service_account_file(
                     config.SERVICE_ACCOUNT_FILE, scopes=scope)
                 auth_req = GoogleAuthRequest()
-                logger.info(f"Refreshing Gemini credentials with scope: {scope}")
+                logger.info(s.LOG_REFRESHING_GEMINI_CREDS.format(scope=scope))
                 credentials.refresh(auth_req)
                 if credentials.token:
                     token_preview = credentials.token[:10] + "..."
-                    logger.info(f"Successfully obtained Gemini access token starting with: {token_preview}")
+                    logger.info(s.LOG_GEMINI_TOKEN_SUCCESS.format(token_preview=token_preview))
                     return credentials
                 else:
-                    logger.warning(f"No token obtained with scope: {scope}")
+                    logger.warning(s.WARN_GEMINI_NO_TOKEN.format(scope=scope))
             except Exception as e:
-                logger.warning(f"Failed to get token with scope {scope}: {str(e)}")
+                logger.warning(s.WARN_GEMINI_FAILED_TOKEN_SCOPE.format(scope=scope, error=str(e)))
                 continue
-        logger.error("All Gemini API authentication attempts failed")
+        logger.error(s.ERROR_GEMINI_ALL_AUTH_FAILED)
         return None
     except Exception as e:
-        logger.error(f"Error getting Gemini credentials: {str(e)}")
+        logger.error(s.ERROR_GETTING_GEMINI_CREDS.format(error=str(e)))
         logger.error(traceback.format_exc()) # Log traceback
         return None
 
 def get_credentials_for_google_apis(scopes):
     """Get authenticated credentials for Google APIs (Forms, Apps Script, etc.)"""
-    logger.info("Attempting to get credentials for Google APIs...")
+    logger.info(s.LOG_GETTING_GOOGLE_API_CREDS)
     try:
         if not config.SERVICE_ACCOUNT_FILE or not os.path.exists(config.SERVICE_ACCOUNT_FILE):
-            logger.error(f"Service account file not found at path: {config.SERVICE_ACCOUNT_FILE}")
+            logger.error(s.ERROR_SERVICE_ACCOUNT_NOT_FOUND.format(path=config.SERVICE_ACCOUNT_FILE))
             return None
-        logger.info(f"Requesting Google API credentials with scopes: {scopes}")
+        logger.info(s.LOG_REQUESTING_GOOGLE_API_CREDS.format(scopes=scopes))
         credentials = service_account.Credentials.from_service_account_file(
             config.SERVICE_ACCOUNT_FILE, scopes=scopes)
-        logger.info(f"Google API credentials object created from file: {config.SERVICE_ACCOUNT_FILE}")
+        logger.info(s.LOG_GOOGLE_API_CREDS_CREATED.format(path=config.SERVICE_ACCOUNT_FILE))
         try:
             auth_req = GoogleAuthRequest()
-            logger.info("Attempting to refresh Google API credentials...")
+            logger.info(s.LOG_REFRESHING_GOOGLE_API_CREDS)
             credentials.refresh(auth_req)
-            logger.info("Google API credentials refreshed successfully.")
+            logger.info(s.LOG_GOOGLE_API_CREDS_REFRESHED)
             if credentials.token:
                 token_preview = credentials.token[:10] + "..."
-                logger.info(f"Obtained Google API access token starting with: {token_preview}")
+                logger.info(s.LOG_GOOGLE_API_TOKEN_SUCCESS.format(token_preview=token_preview))
                 expiry_time = getattr(credentials, 'expiry', None)
-                if expiry_time: logger.info(f"Token expiry time: {expiry_time}")
-                else: logger.info("Token expiry time not available.")
+                if expiry_time: logger.info(s.LOG_GOOGLE_API_TOKEN_EXPIRY.format(expiry_time=expiry_time))
+                else: logger.info(s.LOG_GOOGLE_API_TOKEN_NO_EXPIRY)
             else:
-                logger.warning("Google API credentials refreshed but no token was obtained.")
+                logger.warning(s.WARN_GOOGLE_API_NO_TOKEN)
         except Exception as refresh_error:
-            logger.warning(f"Token refresh failed, but continuing: {str(refresh_error)}")
-        logger.info(f"Successfully obtained credentials for Google APIs.")
+            logger.warning(s.WARN_GOOGLE_API_REFRESH_FAILED.format(error=str(refresh_error)))
+        logger.info(s.LOG_GOOGLE_API_CREDS_SUCCESS)
         return credentials
     except Exception as e:
-        logger.error(f"Error getting Google API credentials: {str(e)}")
+        logger.error(s.ERROR_GETTING_GOOGLE_API_CREDS.format(error=str(e)))
         logger.error(traceback.format_exc()) # Log traceback
         return None
 
@@ -97,15 +97,15 @@ def process_image_with_gemini(image_path, user_id):
     Process an image using Gemini 2.0 Lite API with service account authentication
     Returns: Tuple (Parsed JSON response or None, Error message string or None)
     """
-    logger.info(f"Initiating Gemini API request for image from user_id: {user_id}")
+    logger.info(s.LOG_GEMINI_REQUEST_INITIATED.format(user_id=user_id))
 
     try:
         # Use the dedicated Gemini credentials function
         credentials = get_credentials_for_gemini()
 
         if not credentials:
-            logger.error("Failed to get authenticated credentials for Gemini")
-            return None, "Authentication failed." # Return error message
+            logger.error(s.ERROR_GEMINI_AUTH_FAILED)
+            return None, s.ERROR_GEMINI_AUTH_FAILED_MSG # Return error message
 
         # Read the image file as binary data
         with open(image_path, 'rb') as image_file:
@@ -119,7 +119,7 @@ def process_image_with_gemini(image_path, user_id):
             "contents": [
                 {
                     "role": "user",
-                    "parts": [{"text": "Analyze the image and extract the following personal information: full name, date of birth, age, email, phone number, city, state, gender, and preferred contact method.  Return the extracted information as a **single string** with **key-value pairs separated by pipe symbols (|)**.  The format should be: `key=value|key=value|key=value|...`. Use the following keys: `full_name`, `date_of_birth`, `age`, `email`, `phone_number`, `city`, `state`, `gender`, and `preferred_contact_method`. For example: `full_name=LUIGI CADORNA|date_of_birth=8/2/1962|age=63|email=luigi.cadorna@ymail.com|phone_number=1234567890|city=Buenos Aires|state=JALISCO|gender=Male|preferred_contact_method=Mail` If any piece of information cannot be confidently extracted from the image, leave the corresponding value **empty** (for strings) or `null` (for numbers like age), but still include the key in the output string. For example, if the email is not found, it should be `email=|...` and if the age is not found, it should be `age=null|...`. Ensure the response is **only the single string** with pipe-separated key-value pairs, without any markdown formatting, code blocks, or extraneous text."},
+                    "parts": [{"text": s.GEMINI_PROMPT_IMAGE_ANALYSIS},
                         {
                             "inline_data": {
                                 "mime_type": "image/jpeg",
@@ -137,7 +137,7 @@ def process_image_with_gemini(image_path, user_id):
             }
         }
 
-        logger.info(f"Sending image data to Gemini API endpoint: {config.GEMINI_API_ENDPOINT}")
+        logger.info(s.LOG_GEMINI_SENDING_IMAGE.format(endpoint=config.GEMINI_API_ENDPOINT))
 
         # Get an access token from the credentials
         auth_req = GoogleAuthRequest()
@@ -145,12 +145,12 @@ def process_image_with_gemini(image_path, user_id):
         access_token = credentials.token
 
         if not access_token:
-             logger.error("Failed to get access token after refresh for Gemini.")
-             return None, "Authentication token refresh failed."
+             logger.error(s.ERROR_GEMINI_TOKEN_REFRESH_FAILED)
+             return None, s.ERROR_GEMINI_TOKEN_REFRESH_FAILED_MSG
 
         # Log token information (without revealing the full token)
         token_preview = access_token[:10] + "..." if access_token else "None"
-        logger.info(f"Using token starting with: {token_preview} for image processing")
+        logger.info(s.LOG_GEMINI_USING_TOKEN.format(token_preview=token_preview))
 
         # Make the API request with the access token
         response = requests.post(
@@ -164,56 +164,49 @@ def process_image_with_gemini(image_path, user_id):
         )
 
         # Log the raw response
-        logger.info(f"Received raw response from Gemini API (Status: {response.status_code}): {response.text[:500]}...")
+        logger.info(s.LOG_GEMINI_RAW_RESPONSE.format(status_code=response.status_code, text_preview=response.text[:500]))
 
         # Check if the request was successful
         response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
 
-        logger.info("Successfully received response from Gemini API")
+        logger.info(s.LOG_GEMINI_RESPONSE_SUCCESS)
 
         # Parse the JSON response
-        logger.info("Starting JSON parsing of Gemini API response")
+        logger.info(s.LOG_GEMINI_PARSED_SUCCESS)
         parsed_response = response.json()
-        logger.info("Successfully parsed JSON response")
+        logger.info(s.LOG_GEMINI_PARSED_SUCCESS)
 
         return parsed_response, None # Return data and no error
 
     except requests.exceptions.RequestException as req_err:
-         logger.error(f"HTTP request error calling Gemini API: {req_err}", exc_info=True)
+         logger.error(s.ERROR_GEMINI_REQUEST_FAILED.format(error=req_err), exc_info=True)
          status_code = getattr(req_err.response, 'status_code', None)
          error_text = getattr(req_err.response, 'text', str(req_err))
-         user_error = f"Network error communicating with AI service ({status_code}): {error_text[:200]}"
+         user_error = s.ERROR_GEMINI_REQUEST_FAILED_USER_MSG.format(status_code=status_code, error_text_preview=error_text[:200])
          return None, user_error
     except json.JSONDecodeError as json_err:
-        logger.error(f"Error parsing Gemini JSON response: {json_err}", exc_info=True)
-        return None, "Received invalid data format from AI service."
+        logger.error(s.ERROR_GEMINI_JSON_DECODE.format(error=json_err), exc_info=True)
+        return None, s.ERROR_GEMINI_JSON_DECODE_USER_MSG
     except Exception as e:
-        logger.error(f"Error processing image with Gemini: {str(e)}", exc_info=True)
-        return None, "An unexpected error occurred during AI processing."
+        logger.error(s.ERROR_GEMINI_PROCESSING_IMAGE.format(error=str(e)), exc_info=True)
+        return None, s.ERROR_GEMINI_PROCESSING_IMAGE_USER_MSG
 
 def extract_text_from_gemini_response(gemini_response):
     """
     Extract the text content from Gemini API response and format it as pipe-separated key-value pairs
     """
     try:
-        # Check if response is already a dictionary (parsed JSON)
-        if isinstance(gemini_response, dict):
-            response_dict = gemini_response
-        else:
-            # Try to parse the response as JSON if it's a string
-            if isinstance(gemini_response, str):
-                response_dict = json.loads(gemini_response)
-            else:
-                # If it's neither a dict nor a string, assume it's already the parsed object
-                response_dict = gemini_response
+        if not isinstance(gemini_response, dict):
+             logger.error(s.ERROR_GEMINI_EXTRACT_UNEXPECTED_TYPE.format(type=type(gemini_response)))
+             return s.ERROR_GEMINI_EXTRACT_INVALID_FORMAT
 
         # Initialize all_text to collect the text from all parts
         all_text = ""
 
         # If it's a list of responses (like in gemini_response.json)
-        if isinstance(response_dict, list):
+        if isinstance(gemini_response, list):
             # Extract text from all parts in all responses
-            for response_segment in response_dict:
+            for response_segment in gemini_response:
                 if "candidates" in response_segment and response_segment["candidates"]:
                     candidate = response_segment["candidates"][0]
                     if "content" in candidate and "parts" in candidate["content"]:
@@ -222,28 +215,28 @@ def extract_text_from_gemini_response(gemini_response):
                                 all_text += part["text"]
 
         # Handle single response format
-        elif "candidates" in response_dict and response_dict["candidates"]:
-            candidate = response_dict["candidates"][0]
+        elif "candidates" in gemini_response and gemini_response["candidates"]:
+            candidate = gemini_response["candidates"][0]
             if "content" in candidate and "parts" in candidate["content"]:
                 for part in candidate["content"]["parts"]:
                     if "text" in part:
                         all_text += part["text"]
         else:
             # Check for promptFeedback if no candidates
-            feedback = response_dict.get("promptFeedback", {})
+            feedback = gemini_response.get("promptFeedback", {})
             block_reason = feedback.get("blockReason")
             if block_reason:
-                 logger.warning(f"Gemini response blocked. Reason: {block_reason}")
+                 logger.warning(s.WARN_GEMINI_RESPONSE_BLOCKED.format(reason=block_reason))
                  safety_ratings = feedback.get("safetyRatings", [])
-                 return f"Content blocked by safety filters. Reason: {block_reason}. Details: {safety_ratings}"
+                 return s.GEMINI_RESPONSE_BLOCKED_USER_MSG.format(reason=block_reason, safety_ratings=safety_ratings)
             else:
-                 logger.warning(f"No candidates or block reason found in Gemini response: {response_dict}")
-                 return "No text content found in the AI response."
+                 logger.warning(s.WARN_GEMINI_NO_CANDIDATES.format(response=gemini_response))
+                 return s.GEMINI_NO_TEXT_USER_MSG
 
         # If we didn't extract any text, return a message
         if not all_text:
-            logger.warning("No text was extracted from the response")
-            return "No text content found in the AI response."
+            logger.warning(s.WARN_GEMINI_NO_TEXT_EXTRACTED)
+            return s.GEMINI_NO_TEXT_USER_MSG
 
         # Clean up the text - remove code blocks, markdown formatting, etc.
         all_text = re.sub(r"```(json)?", "", all_text).strip()
@@ -251,80 +244,79 @@ def extract_text_from_gemini_response(gemini_response):
 
         # Basic check if it looks like the expected pipe format
         if "|" in all_text and "=" in all_text:
-            logger.info("Extracted text appears to be in pipe-separated format.")
+            logger.info(s.LOG_GEMINI_EXTRACTED_PIPE_FORMAT)
             return all_text
         else:
-            logger.warning(f"Extracted text might not be in the expected pipe-separated format: {all_text[:100]}...")
+            logger.warning(s.WARN_GEMINI_EXTRACTED_UNEXPECTED_FORMAT.format(text_preview=all_text[:100]))
             # Return the cleaned text anyway
             return all_text
 
     except Exception as e:
-        logger.error(f"Error extracting text from Gemini response: {str(e)}", exc_info=True)
+        logger.error(s.ERROR_GEMINI_EXTRACTING_TEXT.format(error=str(e)), exc_info=True)
         logger.error(f"Problematic response snippet: {str(gemini_response)[:500]}")
-        traceback.print_exc() # Print traceback for debugging
-        return "Error processing AI response content."
+        return s.ERROR_GEMINI_EXTRACTING_TEXT_USER_MSG
 
 def analyze_text_with_gemini(prompt_text, user_id):
     """Sends text prompt to Gemini for analysis (used in Menu 1)."""
-    logger.info(f"Initiating Gemini text analysis for user {user_id}")
+    logger.info(s.LOG_GEMINI_TEXT_ANALYSIS_INITIATED.format(user_id=user_id))
     try:
         credentials = get_credentials_for_gemini()
         if not credentials:
-            logger.error("Failed to get authenticated credentials for Gemini text analysis")
-            return None, "Authentication failed."
+            logger.error(s.ERROR_GEMINI_TEXT_AUTH_FAILED)
+            return None, s.ERROR_GEMINI_AUTH_FAILED_MSG
 
         if not credentials.token:
-             logger.error("Credentials obtained but token is missing after refresh for Gemini text analysis.")
-             return None, "Authentication token issue."
+             logger.error(s.ERROR_GEMINI_TEXT_TOKEN_MISSING)
+             return None, s.ERROR_GEMINI_TEXT_TOKEN_MISSING_MSG
 
         headers = {
             "Authorization": f"Bearer {credentials.token}",
             "Content-Type": "application/json"
         }
         token_preview = credentials.token[:10] + "..."
-        logger.info(f"Using token starting with: {token_preview} for text analysis")
+        logger.info(s.LOG_GEMINI_TEXT_USING_TOKEN.format(token_preview=token_preview))
 
         payload = {
             "contents": [{"role": "user", "parts": [{"text": prompt_text}]}],
             "generationConfig": {"temperature": 0.4, "topK": 32, "topP": 0.95, "maxOutputTokens": 1024}
         }
 
-        logger.info(f"Sending text analysis request to Gemini API endpoint: {config.GEMINI_API_ENDPOINT}")
+        logger.info(s.LOG_GEMINI_TEXT_SENDING_REQUEST.format(endpoint=config.GEMINI_API_ENDPOINT))
         response = requests.post(config.GEMINI_API_ENDPOINT, headers=headers, json=payload, timeout=60)
 
-        logger.info(f"Received raw response from Gemini API (Status: {response.status_code}): {response.text[:500]}...")
+        logger.info(s.LOG_GEMINI_RAW_RESPONSE.format(status_code=response.status_code, text_preview=response.text[:500]))
         response.raise_for_status()
 
         response_json = response.json()
         analysis_result = extract_text_from_gemini_response(response_json) # Reuse extraction logic
-        logger.info(f"Successfully received and extracted Gemini analysis for user {user_id}")
+        logger.info(s.LOG_GEMINI_TEXT_ANALYSIS_SUCCESS.format(user_id=user_id))
         return analysis_result, None
 
     except requests.exceptions.RequestException as req_err:
-         logger.error(f"HTTP request error calling Gemini API for text analysis: {req_err}", exc_info=True)
+         logger.error(s.ERROR_GEMINI_TEXT_REQUEST_FAILED.format(error=req_err), exc_info=True)
          status_code = getattr(req_err.response, 'status_code', None)
          error_text = getattr(req_err.response, 'text', str(req_err))
-         user_error = f"Network error communicating with AI service ({status_code}): {error_text[:200]}"
+         user_error = s.ERROR_GEMINI_REQUEST_FAILED_USER_MSG.format(status_code=status_code, error_text_preview=error_text[:200])
          return None, user_error
     except json.JSONDecodeError as json_err:
-        logger.error(f"Error parsing Gemini JSON response for text analysis: {json_err}", exc_info=True)
-        return None, "Received invalid data format from AI service."
+        logger.error(s.ERROR_GEMINI_TEXT_JSON_DECODE.format(error=json_err), exc_info=True)
+        return None, s.ERROR_GEMINI_JSON_DECODE_USER_MSG
     except Exception as e:
-        logger.error(f"Error processing text with Gemini for user {user_id}: {str(e)}", exc_info=True)
-        return None, "An unexpected error occurred during AI text analysis."
+        logger.error(s.ERROR_GEMINI_TEXT_PROCESSING.format(user_id=user_id, error=str(e)), exc_info=True)
+        return None, s.ERROR_GEMINI_TEXT_PROCESSING_USER_MSG
 
 # --- Google Forms API ---
 def get_google_form_response(form_id, response_id):
     """Retrieves a specific response from a Google Form."""
-    logger.info(f"Attempting to retrieve response {response_id} from form {form_id}")
+    logger.info(s.LOG_FORM_RETRIEVAL_INITIATED.format(response_id=response_id, form_id=form_id))
 
     # Get credentials for Google Forms API
-    forms_scope = ["https://www.googleapis.com/auth/forms.responses.readonly"]
+    forms_scope = [s.API_SCOPE_FORMS_READONLY]
     credentials = get_credentials_for_google_apis(scopes=forms_scope)
 
     if not credentials:
-        logger.error("Failed to get credentials for Google Forms API.")
-        return None, "Authentication failed."
+        logger.error(s.ERROR_FORM_AUTH_FAILED)
+        return None, s.ERROR_FORM_AUTH_FAILED_MSG
 
     try:
         # Build the service object
@@ -336,7 +328,7 @@ def get_google_form_response(form_id, response_id):
             responseId=response_id
         ).execute()
 
-        logger.info(f"Successfully retrieved form response {response_id}")
+        logger.info(s.LOG_FORM_RETRIEVAL_SUCCESS.format(response_id=response_id))
         return result, None # Return data and no error
 
     except HttpError as error:
@@ -349,40 +341,38 @@ def get_google_form_response(form_id, response_id):
              error_message = f"API Error (Status: {error.resp.status})"
              status_code = error.resp.status
 
-        logger.error(f"Google Forms API error: {status_code} - {error_message}")
-        if status_code == 404:
-             return None, f"Response ID '{response_id}' not found in form '{form_id}'."
-        elif status_code == 403:
-             return None, "Permission denied. Ensure the service account has access to the form responses."
-        else:
-             return None, f"API Error: {error_message}"
+        logger.error(s.ERROR_FORM_API.format(status_code=status_code, error_message=error_message))
+        user_error = s.ERROR_FORM_API_USER_MSG.format(status_code=status_code, error_message=error_message)
+        if status_code == 404: user_error = s.ERROR_FORM_NOT_FOUND_USER_MSG.format(response_id=response_id, form_id=form_id)
+        elif status_code == 403: user_error = s.ERROR_FORM_PERMISSION_DENIED_USER_MSG
+        return None, user_error
     except Exception as e:
-        logger.error(f"Unexpected error retrieving form response: {e}", exc_info=True)
-        return None, "An unexpected error occurred."
+        logger.error(s.ERROR_FORM_UNEXPECTED.format(error=e), exc_info=True)
+        return None, s.ERROR_GENERIC
 
 # --- Google Apps Script ---
 def call_apps_script(script_id, function_name, parameters):
     """Calls a Google Apps Script function with extensive logging."""
-    logger.info(f"Initiating call to Apps Script ID: {script_id}, Function: {function_name}")
-    logger.debug(f"Apps Script parameters: {parameters}") # Log parameters at debug level
+    logger.info(s.LOG_APPS_SCRIPT_CALL_INITIATED.format(script_id=script_id, function_name=function_name))
+    logger.debug(s.LOG_APPS_SCRIPT_PARAMETERS.format(parameters=parameters)) # Log parameters at debug level
 
     # Get credentials for Apps Script API
-    apps_script_scope = ["https://www.googleapis.com/auth/script.execute"]
+    apps_script_scope = [s.API_SCOPE_SCRIPT_EXECUTE]
     credentials = get_credentials_for_google_apis(scopes=apps_script_scope)
 
     if not credentials:
         # get_credentials already logs the error extensively
-        logger.error("Failed to obtain credentials for Apps Script call.")
-        return None, "Authentication failed. Could not get credentials."
+        logger.error(s.ERROR_APPS_SCRIPT_AUTH_FAILED)
+        return None, s.ERROR_APPS_SCRIPT_AUTH_FAILED_MSG
 
     # Log credential details (avoid logging full token)
-    logger.info(f"Using credentials for service account: {credentials.service_account_email}")
-    logger.debug(f"Credentials valid: {credentials.valid}, Scopes: {credentials.scopes}")
+    logger.info(s.LOG_APPS_SCRIPT_USING_CREDS.format(email=credentials.service_account_email))
+    logger.debug(s.LOG_APPS_SCRIPT_CREDS_DETAILS.format(valid=credentials.valid, scopes=credentials.scopes))
 
     try:
-        logger.info("Building Apps Script API service (script, v1)...")
+        logger.info(s.LOG_APPS_SCRIPT_BUILDING_SERVICE)
         service = build('script', 'v1', credentials=credentials)
-        logger.info("Apps Script API service built successfully.")
+        logger.info(s.LOG_APPS_SCRIPT_SERVICE_BUILT)
 
         # Create the request body
         request = {
@@ -390,13 +380,13 @@ def call_apps_script(script_id, function_name, parameters):
             'parameters': parameters,
             'devMode': False  # Set to True only if debugging the Apps Script itself
         }
-        logger.info(f"Executing Apps Script function '{function_name}'...")
-        logger.debug(f"Apps Script request body: {request}")
+        logger.info(s.LOG_APPS_SCRIPT_EXECUTING.format(function_name=function_name))
+        logger.debug(s.LOG_APPS_SCRIPT_REQUEST_BODY.format(request=request))
 
         # Make the API call to run the script
         response = service.scripts().run(scriptId=script_id, body=request).execute()
-        logger.info(f"Received response from Apps Script execution.")
-        logger.debug(f"Raw Apps Script response: {response}") # Log raw response at debug level
+        logger.info(s.LOG_APPS_SCRIPT_RESPONSE_RECEIVED)
+        logger.debug(s.LOG_APPS_SCRIPT_RAW_RESPONSE.format(response=response)) # Log raw response at debug level
 
         # Check for errors returned by the Apps Script execution itself
         if 'error' in response:
@@ -405,55 +395,49 @@ def call_apps_script(script_id, function_name, parameters):
             error_type = error_details.get('errorType', 'UnknownType')
             script_stack_trace = error_details.get('scriptStackTraceElements', [])
 
-            logger.error(f"Apps Script execution error: Type={error_type}, Message={error_message}")
+            logger.error(s.ERROR_APPS_SCRIPT_EXECUTION.format(error_type=error_type, error_message=error_message))
             if script_stack_trace:
-                logger.error(f"Apps Script Stacktrace: {script_stack_trace}")
+                logger.error(s.LOG_APPS_SCRIPT_STACKTRACE.format(stacktrace=script_stack_trace))
 
             # Provide a more user-friendly message based on common issues
+            user_error = s.ERROR_APPS_SCRIPT_EXECUTION_USER_MSG.format(error_message=error_message)
             if "Authorization is required" in error_message or "Script has attempted to perform an action" in error_message:
-                 user_error = "Authorization error within the Apps Script. Ensure the script has the necessary permissions."
+                 user_error = s.ERROR_APPS_SCRIPT_AUTH_REQUIRED_USER_MSG
             elif "not found" in error_message: # Function or variable not found
-                 user_error = f"Error within the Apps Script: '{function_name}' or related code not found."
-            else:
-                 user_error = f"Error during script execution: {error_message}"
+                 user_error = s.ERROR_APPS_SCRIPT_NOT_FOUND_USER_MSG.format(function_name=function_name)
             return None, user_error
 
         # Extract the result if execution was successful
         result = response.get('response', {}).get('result')
-        logger.info(f"Apps Script execution successful. Result type: {type(result)}")
-        logger.debug(f"Apps Script result: {result}") # Log result at debug level
+        logger.info(s.LOG_APPS_SCRIPT_EXECUTION_SUCCESS.format(type=type(result)))
+        logger.debug(s.LOG_APPS_SCRIPT_RESULT.format(result=result)) # Log result at debug level
         return result, None # Return result and no error
 
     except HttpError as http_error:
         status_code = http_error.resp.status
         error_content = http_error.content.decode('utf-8')
-        logger.error(f"HTTP error calling Apps Script API: Status={status_code}, Response={error_content}", exc_info=True)
+        logger.error(s.ERROR_APPS_SCRIPT_HTTP.format(status_code=status_code, error_content=error_content), exc_info=True)
 
         # Provide specific user messages based on HTTP status code
-        if status_code == 401: # Unauthorized
-            user_error = "Authentication failed (401). Check service account credentials and API access."
-        elif status_code == 403: # Forbidden
-            user_error = "Permission denied (403). Ensure the Apps Script API is enabled and the service account has permission to execute the script."
-        elif status_code == 404: # Not Found
-            user_error = f"Apps Script project (ID: {script_id}) not found (404)."
-        elif status_code == 429: # Rate Limited
-             user_error = "API rate limit exceeded (429). Please try again later."
-        else:
-            user_error = f"API error occurred ({status_code}). Check logs for details."
+        user_error = s.ERROR_APPS_SCRIPT_HTTP_USER_MSG.format(status_code=status_code)
+        if status_code == 401: user_error = s.ERROR_APPS_SCRIPT_HTTP_401_USER_MSG
+        elif status_code == 403: user_error = s.ERROR_APPS_SCRIPT_HTTP_403_USER_MSG
+        elif status_code == 404: user_error = s.ERROR_APPS_SCRIPT_HTTP_404_USER_MSG.format(script_id=script_id)
+        elif status_code == 429: user_error = s.ERROR_APPS_SCRIPT_HTTP_429_USER_MSG
         return None, user_error
 
     except Exception as e:
-        logger.error(f"Unexpected error calling Apps Script: {e}", exc_info=True)
-        return None, "An unexpected error occurred while communicating with the Apps Script service."
+        logger.error(s.ERROR_APPS_SCRIPT_UNEXPECTED.format(error=e), exc_info=True)
+        return None, s.ERROR_APPS_SCRIPT_UNEXPECTED_USER_MSG
 
 def get_sheet_data_via_webapp(id_to_find):
     """Retrieves data from the Google Sheet via the deployed Apps Script Web App."""
-    logger.info(f"Initiating call to Apps Script Web App for ID: {id_to_find}")
+    logger.info(s.LOG_WEB_APP_CALL_INITIATED.format(id_to_find=id_to_find))
 
     # Check if configuration is available
     if not config.APPS_SCRIPT_WEB_APP_URL or not config.APPS_SCRIPT_API_KEY:
-        logger.error("Web App URL or API Key is not configured.")
-        return None, "Web App retrieval is not configured on the server."
+        logger.error(s.ERROR_WEB_APP_NOT_CONFIGURED)
+        return None, s.ERROR_WEB_APP_NOT_CONFIGURED_USER_MSG
 
     try:
         # Construct the URL with query parameters
@@ -462,63 +446,58 @@ def get_sheet_data_via_webapp(id_to_find):
             'apiKey': config.APPS_SCRIPT_API_KEY
         }
         target_url = config.APPS_SCRIPT_WEB_APP_URL
-        logger.info(f"Making GET request to Web App URL (parameters omitted for security)")
+        logger.info(s.LOG_WEB_APP_MAKING_REQUEST)
         # For debugging ONLY, uncomment the next line:
         # logger.debug(f"Request URL: {target_url}?id={id_to_find}&apiKey={config.APPS_SCRIPT_API_KEY[:4]}...")
 
         # --- START MODIFICATION ---
-        logger.info(f"Attempting requests.get to {target_url} with timeout=30...") # Add log BEFORE request
+        logger.info(s.LOG_WEB_APP_ATTEMPTING_GET.format(target_url=target_url)) # Add log BEFORE request
         # Make the GET request
         response = requests.get(target_url, params=params, timeout=30) # Existing request
-        logger.info(f"requests.get call completed. Status code received: {response.status_code}") # Add log AFTER request
+        logger.info(s.LOG_WEB_APP_GET_COMPLETED.format(status_code=response.status_code)) # Add log AFTER request
         # --- END MODIFICATION ---
 
         # Log basic response info (existing log)
-        logger.info(f"Received response from Web App. Status: {response.status_code}, Content-Type: {response.headers.get('Content-Type')}")
-        logger.debug(f"Raw response text (first 500 chars): {response.text[:500]}")
+        logger.info(s.LOG_WEB_APP_RESPONSE_RECEIVED.format(status_code=response.status_code, content_type=response.headers.get('Content-Type')))
+        logger.debug(s.LOG_WEB_APP_RAW_RESPONSE.format(text_preview=response.text[:500]))
 
         # Check for HTTP errors (4xx or 5xx)
         response.raise_for_status()
 
         # Check for specific text responses indicating errors from the script itself
         if response.text == "Not Found":
-            logger.warning(f"Web App returned 'Not Found' for ID: {id_to_find}")
-            return None, f"ID '{id_to_find}' not found in the Google Sheet."
+            logger.warning(s.WARN_WEB_APP_NOT_FOUND.format(id_to_find=id_to_find))
+            return None, s.WEB_APP_NOT_FOUND_USER_MSG.format(id_to_find=id_to_find)
         if response.text == "Unauthorized":
-            logger.error("Web App returned 'Unauthorized'. Check the API Key.")
-            return None, "Authorization failed. Invalid API Key provided to Web App."
+            logger.error(s.ERROR_WEB_APP_UNAUTHORIZED)
+            return None, s.WEB_APP_UNAUTHORIZED_USER_MSG
         if response.text == "Bad Request":
-             logger.error("Web App returned 'Bad Request'. Check if 'id' parameter is missing or invalid.")
-             return None, "Bad request sent to the Web App (e.g., missing ID)."
+             logger.error(s.ERROR_WEB_APP_BAD_REQUEST)
+             return None, s.WEB_APP_BAD_REQUEST_USER_MSG
 
         # Attempt to parse the JSON response
         try:
             json_result = response.json()
-            logger.info(f"Successfully parsed JSON response from Web App for ID: {id_to_find}")
+            logger.info(s.LOG_WEB_APP_JSON_PARSED.format(id_to_find=id_to_find))
             return json_result, None # Return data and no error
         except json.JSONDecodeError as json_err:
-            logger.error(f"Failed to decode JSON response from Web App: {json_err}")
-            logger.error(f"Response text was: {response.text}")
-            return None, "Received invalid data format from the Web App."
+            logger.error(s.ERROR_WEB_APP_JSON_DECODE.format(error=json_err))
+            logger.error(s.ERROR_WEB_APP_JSON_DECODE_TEXT.format(text=response.text))
+            return None, s.WEB_APP_INVALID_DATA_USER_MSG
 
     except requests.exceptions.Timeout:
-         logger.error(f"Request to Web App timed out for ID: {id_to_find}")
-         return None, "The request to the Web App timed out."
+         logger.error(s.ERROR_WEB_APP_TIMEOUT.format(id_to_find=id_to_find))
+         return None, s.WEB_APP_TIMEOUT_USER_MSG
     except requests.exceptions.RequestException as req_err:
-        logger.error(f"HTTP request error calling Web App: {req_err}", exc_info=True)
+        logger.error(s.ERROR_WEB_APP_REQUEST_FAILED.format(error=req_err), exc_info=True)
         # Try to provide more specific feedback based on status code if available
         status_code = getattr(req_err.response, 'status_code', None)
-        if status_code == 401: # Often means script requires login / incorrect sharing
-             user_error = "Web App access denied (401). Check script permissions/deployment settings."
-        elif status_code == 403: # Might mean API key mismatch or other permission issue
-             user_error = "Web App forbidden (403). Check API key or script access settings."
-        elif status_code == 404: # URL incorrect
-             user_error = "Web App URL not found (404). Check the configured URL."
-        elif status_code == 500: # Internal server error in the script
-             user_error = "Error within the Web App script (500). Check script logs."
-        else:
-             user_error = f"Network error communicating with the Web App: {req_err}"
+        user_error = s.WEB_APP_REQUEST_FAILED_USER_MSG.format(error=req_err)
+        if status_code == 401: user_error = s.WEB_APP_REQUEST_FAILED_401_USER_MSG
+        elif status_code == 403: user_error = s.WEB_APP_REQUEST_FAILED_403_USER_MSG
+        elif status_code == 404: user_error = s.WEB_APP_REQUEST_FAILED_404_USER_MSG
+        elif status_code == 500: user_error = s.WEB_APP_REQUEST_FAILED_500_USER_MSG
         return None, user_error
     except Exception as e:
-        logger.error(f"Unexpected error retrieving data via Web App: {e}", exc_info=True)
-        return None, "An unexpected error occurred while contacting the Web App."
+        logger.error(s.ERROR_WEB_APP_UNEXPECTED.format(error=e), exc_info=True)
+        return None, s.WEB_APP_UNEXPECTED_USER_MSG
