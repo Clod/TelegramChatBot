@@ -47,6 +47,7 @@ async def telegram_client():
     # Disconnect after the test
     await client.disconnect()
 
+@pytest.mark.asyncio
 async def test_main_menu(telegram_client):
     """Test that the main menu appears and has expected buttons."""
     # Send the /start command to get the main menu
@@ -75,11 +76,12 @@ async def test_main_menu(telegram_client):
             button_texts.append(button.text)
     logger.info(f"Found buttons: {button_texts}")
     
-    # Verify expected buttons exist (adjust these based on your actual menu)
-    expected_buttons = ["Help", "Settings", "About"]  # Replace with your actual button names
+    # Verify expected buttons exist based on your bot's menu
+    expected_buttons = ["Ayuda", "Configuración", "Información"]  # Adjusted for Spanish menu
     for expected in expected_buttons:
         assert any(expected in btn for btn in button_texts), f"Expected button '{expected}' not found"
 
+@pytest.mark.asyncio
 async def test_help_button(telegram_client):
     """Test clicking the Help button in the main menu."""
     # First get the main menu
@@ -126,6 +128,7 @@ async def test_help_button(telegram_client):
     
     assert help_received, "No help message was received after clicking Help button"
 
+@pytest.mark.asyncio
 async def test_settings_submenu(telegram_client):
     """Test that the settings submenu appears when clicking Settings."""
     # First get the main menu
@@ -184,6 +187,7 @@ async def test_settings_submenu(telegram_client):
     
     assert submenu_received, "No settings submenu was received after clicking Settings button"
 
+@pytest.mark.asyncio
 async def test_back_button(telegram_client):
     """Test that the Back button returns to the main menu."""
     # First navigate to a submenu
