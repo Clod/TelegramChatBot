@@ -236,6 +236,76 @@ def handle_photo(message):
         logger.info(s.LOG_IMAGE_WORKFLOW_CLEANUP_COMPLETE.format(user_id=user_id))
 
 
+# --- Helper Function for Gemini Analysis ---
+def _trigger_gemini_analysis(user_id, chat_id, message_id_to_edit=None, latest_message_text=None):
+    """Fetches history, optionally adds latest message, calls Gemini, and replies/edits."""
+    processing_message_id = None
+    try:
+        # Send "Analyzing..." message if it's a new request (not from callback edit)
+        if message_id_to_edit is None:
+            processing_msg = bot.send_message(chat_id, s.CALLBACK_ANALYZING_MESSAGES)
+            processing_message_id = processing_msg.message_id
+        else:
+            # Edit the existing message (from callback)
+            bot.edit_message_text(s.CALLBACK_ANALYZING_MESSAGES, chat_id, message_id_to_edit)
+            processing_message_id = message_id_to_edit # Use the callback message ID for subsequent edits
+
+        # Fetch history (include text messages for analysis)
+        messages = db.get_user_message_history(user_id, include_text=True, limit=20) # Ensure include_text=True
+
+        if not messages and not latest_message_text:
+            bot.edit_message_text(s.CALLBACK_NO_MESSAGES_TO_ANALYZE, chat_id, processing_message_id, reply_markup=generate_main_menu())
+            return
+
+        # Construct the prompt
+        prompt = s.GEMINI_PROMPT_TEXT_ANALYSIS
+
+        # Add the latest message text first if provided and not a command
+        if latest_message_text and not latest_message_text.startswith('/'):
+             prompt += s.CALLBACK_ANALYSIS_PROMPT_TEXT.format(text=latest_message_text)
+
+        # Add historical messages
+        for msg in messages:
+            msg_text = msg.get('message_text')
+            # Exclude the latest message if it was already added via latest_message_text
+            # (Comparing text is brittle, maybe rely on message_id if available, but simple text check for now)
+            if msg_text and msg_text != latest_message_text and not (isinstance(msg_text, str) and msg_text.startswith('/')):
+                try: # Format JSON nicely if possible
+                    if isinstance(msg_text, str) and msg_text.startswith('{') and msg_text.endswith('}'):
+                        json_data = json.loads(msg_text)
+                        formatted_json = json.dumps(json_data, indent=2, ensure_ascii=False)
+                        prompt += s.CALLBACK_ANALYSIS_PROMPT_JSON.format(formatted_json=formatted_json)
+                    else: prompt += s.CALLBACK_ANALYSIS_PROMPT_TEXT.format(text=msg_text)
+                except: prompt += s.CALLBACK_ANALYSIS_PROMPT_TEXT.format(text=msg_text) # Fallback
+
+        logger.info(s.LOG_SENDING_PROMPT_TO_GEMINI.format(user_id=user_id, prompt_preview=prompt[:500]))
+        analysis_result, error_msg = google_apis.analyze_text_with_gemini(prompt, user_id)
+
+        if error_msg or not analysis_result:
+             error_text = error_msg or "AI service returned no response." # Keep default
+             bot.edit_message_text(s.CALLBACK_ANALYSIS_ERROR_USER_MSG.format(error_text=error_text), chat_id, processing_message_id, reply_markup=generate_main_menu())
+        else:
+             # Truncate if necessary before sending
+             final_text = s.CALLBACK_ANALYSIS_RESULT_USER_MSG.format(analysis_result=analysis_result)
+             if len(final_text) > 4096:
+                 final_text = final_text[:4093] + "..."
+                 logger.warning(f"Truncated long Gemini analysis result for user {user_id}")
+             bot.edit_message_text(final_text, chat_id, processing_message_id, reply_markup=generate_main_menu())
+
+    except Exception as e:
+        logger.error(f"Error in _trigger_gemini_analysis for user {user_id}: {e}", exc_info=True)
+        try:
+            # Try to edit the message to show a generic error
+            error_edit_id = processing_message_id if processing_message_id else message_id_to_edit
+            if error_edit_id:
+                bot.edit_message_text(s.ERROR_PROCESSING_REQUEST, chat_id, error_edit_id, reply_markup=generate_main_menu())
+            else: # If we couldn't even send the initial message
+                bot.send_message(chat_id, s.ERROR_PROCESSING_REQUEST, reply_markup=generate_main_menu())
+        except Exception as nested_e:
+            logger.error(f"Failed to send error message during _trigger_gemini_analysis recovery: {nested_e}")
+    # No finally block needed to send menu, as edit_message_text includes it
+
+
 @bot.message_handler(func=lambda message: True, content_types=[s.DB_MESSAGE_TYPE_TEXT])
 def handle_text(message):
     user_id = message.from_user.id
@@ -268,24 +338,11 @@ def handle_text(message):
         bot.reply_to(message, s.TEXT_UNKNOWN_COMMAND_USER_MSG)
         logger.info(s.LOG_SKIPPED_MENU_FOR_COMMAND.format(command=message.text, chat_id=chat_id))
     else:
-        if config.DEBUG_MODE:
-            message_history = db.get_user_message_history(user_id, limit=10)
-            if message_history:
-                history_text = s.TEXT_HISTORY_HEADER
-                for i, msg in enumerate(message_history[1:], 1): # Skip current message
-                    timestamp = datetime.fromisoformat(msg['timestamp'].replace('Z', '+00:00'))
-                    formatted_time = timestamp.strftime('%Y-%m-%d %H:%M:%S')
-                    history_text += f"{i}. [{formatted_time}] {msg['message_text']}\n"
-                if len(message_history) <= 1: history_text += s.TEXT_HISTORY_NO_PREVIOUS
-                bot.reply_to(message, history_text)
-            else:
-                bot.reply_to(message, s.TEXT_RECEIVED_NO_HISTORY_USER_MSG)
-        else:
-             bot.reply_to(message, s.TEXT_RECEIVED_USER_MSG) # Simplified reply in production
-
-        # Send main menu only for non-command text messages
-        send_main_menu_message(chat_id)
-        logger.info(s.LOG_SENT_MENU_AFTER_TEXT.format(chat_id=chat_id))
+        # Not a command and not a 'dato[s]' keyword message.
+        # Trigger Gemini analysis including this new message.
+        logger.info(f"Triggering Gemini analysis for incoming text message from user {user_id}")
+        _trigger_gemini_analysis(user_id, chat_id, latest_message_text=message.text)
+        # The helper function now handles sending the result and the main menu.
 
 
 # --- Callback Query Handler ---
@@ -427,32 +484,8 @@ def handle_callback_query(call):
         elif callback_data == s.CALLBACK_DATA_MENU1:
             logger.info(s.LOG_CALLBACK_MENU1.format(user_id=user_id))
             user_sessions[user_id]['state'] = s.USER_STATE_MENU1
-            bot.edit_message_text(s.CALLBACK_ANALYZING_MESSAGES, chat_id, message_id)
-            messages = db.get_user_message_history(user_id, limit=20)
-            if not messages:
-                bot.edit_message_text(s.CALLBACK_NO_MESSAGES_TO_ANALYZE, chat_id, message_id, reply_markup=generate_main_menu())
-                return
-
-            prompt = s.GEMINI_PROMPT_TEXT_ANALYSIS
-            for msg in messages:
-                msg_text = msg.get('message_text')
-                if msg_text and not (isinstance(msg_text, str) and msg_text.startswith('/')):
-                    try: # Format JSON nicely if possible
-                        if isinstance(msg_text, str) and msg_text.startswith('{') and msg_text.endswith('}'):
-                            json_data = json.loads(msg_text)
-                            formatted_json = json.dumps(json_data, indent=2, ensure_ascii=False)
-                            prompt += s.CALLBACK_ANALYSIS_PROMPT_JSON.format(formatted_json=formatted_json)
-                        else: prompt += s.CALLBACK_ANALYSIS_PROMPT_TEXT.format(text=msg_text)
-                    except: prompt += s.CALLBACK_ANALYSIS_PROMPT_TEXT.format(text=msg_text) # Fallback
-
-            logger.info(s.LOG_SENDING_PROMPT_TO_GEMINI.format(user_id=user_id, prompt_preview=prompt[:500]))
-            analysis_result, error_msg = google_apis.analyze_text_with_gemini(prompt, user_id)
-
-            if error_msg or not analysis_result:
-                 error_text = error_msg or "AI service returned no response." # Keep default
-                 bot.edit_message_text(s.CALLBACK_ANALYSIS_ERROR_USER_MSG.format(error_text=error_text), chat_id, message_id, reply_markup=generate_main_menu())
-            else:
-                 bot.edit_message_text(s.CALLBACK_ANALYSIS_RESULT_USER_MSG.format(analysis_result=analysis_result), chat_id, message_id, reply_markup=generate_main_menu())
+            # Call the helper function, passing the message_id to edit
+            _trigger_gemini_analysis(user_id, chat_id, message_id_to_edit=message_id)
 
         # --- Menu 2 (Example) ---
         elif callback_data == s.CALLBACK_DATA_MENU2:
