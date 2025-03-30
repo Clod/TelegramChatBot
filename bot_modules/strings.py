@@ -285,6 +285,7 @@ CALLBACK_DATA_SUMMARY_PREFS = "• Language: {language}\n\nActivity:\n"
 CALLBACK_DATA_SUMMARY_ACTIVITY = "• Messages: {message_count}\n• Interactions: {interaction_count}\n\nRecent Messages:\n"
 CALLBACK_DATA_SUMMARY_RECENT_MSG = "{index}. {text_preview}{ellipsis}\n"
 CALLBACK_DATA_SUMMARY_NO_RECENT = "None\n"
+CALLBACK_DATA_SUMMARY_NO_TEXT = "[No Text/Media]" # Placeholder for None message text
 CALLBACK_NO_DATA_FOUND = "No data found."
 LOG_CALLBACK_DELETE_DATA = "User {user_id}: Requested data deletion"
 CALLBACK_DELETE_CONFIRMATION_USER_MSG = "⚠️ Sure you want to delete all data? Cannot be undone."
