@@ -84,6 +84,7 @@ async def telegram_client():
     # Disconnect after the test
     await client.disconnect()
 
+# % pytest test_menu_buttons.py::test_main_menu -v 
 @pytest.mark.asyncio
 async def test_main_menu(telegram_client):
     """Test that the main menu appears and has expected buttons."""
@@ -117,13 +118,13 @@ async def test_main_menu(telegram_client):
     logger.info(f"Found buttons: {button_texts}")
     
     # Verify expected buttons exist based on your bot's menu
-    expected_buttons = ["Help", "Process", "About"]  # Adjust these to match your actual button names
+    expected_buttons = ["Analyze My Messages", "View My Data", "Delete My Data", "Edit My Messages"]  # Adjust these to match your actual button names
     for expected in expected_buttons:
         assert any(expected in btn for btn in button_texts), f"Expected button '{expected}' not found"
 
 @pytest.mark.asyncio
-async def test_help_button(telegram_client):
-    """Test clicking the Help button in the main menu."""
+async def test_view_my_data_button(telegram_client):
+    """Test clicking the View My Data button in the main menu."""
     # First get the main menu
     # Use the bot entity if available, otherwise use the ID
     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
@@ -142,19 +143,19 @@ async def test_help_button(telegram_client):
     assert menu_message is not None, "No menu with buttons was received"
     
     # Find and click the Help button
-    help_button = None
+    view_my_data_button = None
     for row in menu_message.buttons:
         for button in row:
-            if "Help" in button.text:  # Adjust this to match your actual button name
-                help_button = button
+            if "View My Data" in button.text:  # Adjust this to match your actual button name
+                view_my_data_button = button
                 break
-        if help_button:
+        if view_my_data_button:
             break
     
-    assert help_button is not None, "Help button not found"
+    assert view_my_data_button is not None, "View My Data button not found"
     
     # Click the button
-    await menu_message.click(text=help_button.text)
+    await menu_message.click(text=view_my_data_button.text)
     
     # Wait for response
     await asyncio.sleep(2)
@@ -165,12 +166,27 @@ async def test_help_button(telegram_client):
     help_received = False
     
     for msg in recent_messages:
-        if "help" in msg.text.lower() or "command" in msg.text.lower():
+        if "cadorna" in msg.text.lower() or "luigi" in msg.text.lower():
             help_received = True
-            logger.info(f"Help message received: {msg.text[:100]}...")
+            logger.info(f"Cadorna message received: {msg.text[:100]}...")
             break
     
-    assert help_received, "No help message was received after clicking Help button"
+    assert help_received, "No Luigi Cadorna message was received after clicking Help button"
+
+    print (recent_messages)
+    
+    back_button_message = None
+    for msg in recent_messages:
+        if msg.buttons:
+            back_button_message = msg
+            break
+        
+   # Click the "Back to Main Menu" button
+    await back_button_message.click(text="Back to Main Menu")
+    
+    # Wait for response
+    await asyncio.sleep(2)
+
 
 @pytest.mark.asyncio
 async def test_settings_submenu(telegram_client):
