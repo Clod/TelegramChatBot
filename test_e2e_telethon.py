@@ -1,10 +1,12 @@
 import asyncio
 import os
 import pytest
+import pytest_asyncio
 from telethon import TelegramClient
 from telethon.tl.custom import Button
 from telethon.errors import SessionPasswordNeededError
 from dotenv import load_dotenv
+from telethon import utils
 
 # Load environment variables from .env file
 load_dotenv()
@@ -14,7 +16,7 @@ api_id = os.getenv("TELEGRAM_API_ID")
 api_hash = os.getenv("TELEGRAM_API_HASH")
 phone = os.getenv("TELEGRAM_PHONE")
 bot_username = os.getenv("TELEGRAM_BOT_USERNAME")
-TEST_IMAGE_PATH = os.getenv("TEST_IMAGE_PATH", "test_image.jpg") # Default path if not set
+TEST_IMAGE_PATH = os.getenv("TEST_IMAGE_PATH", "/Users/claudiograsso/Documents/code/telegram_bot_webhook/images/cadorna.jpeg") # Default path if not set
 
 # Basic validation
 if not all([api_id, api_hash, phone, bot_username]):
@@ -33,8 +35,15 @@ except ValueError:
 # Use a unique session name for testing to avoid conflicts
 session_name = "telegram_test_session"
 
+# Configure pytest-asyncio to use session scope for the loop
+pytestmark = pytest.mark.asyncio(scope="session")
 
+# Configure pytest-asyncio to use session scope for the loop
 @pytest.fixture(scope="session")
+def asyncio_default_fixture_loop_scope():
+    return "session"
+
+@pytest_asyncio.fixture(scope="session")
 async def telegram_client():
     """Fixture to create and manage the Telegram client connection."""
     print("\nInitializing Telegram client...")
@@ -63,13 +72,12 @@ async def telegram_client():
 
         yield client
 
-        print("\nDisconnecting Telegram client...")
-        await client.disconnect()
-        print("Client disconnected.")
-
     except Exception as e:
         pytest.fail(f"Failed to initialize or connect Telegram client: {e}")
     finally:
+        print("\nDisconnecting Telegram client...")
+        await client.disconnect()
+        print("Client disconnected.")
         # Clean up session files after tests run
         if os.path.exists(f"{session_name}.session"):
             os.remove(f"{session_name}.session")
