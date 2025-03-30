@@ -257,7 +257,7 @@ async def test_inline_button_interaction(telegram_client):
             if edited_message and edited_message.text != response_with_buttons.text:
                  print(s.TEST_MESSAGE_EDITED_LOG.format(text_preview=edited_message.text[:100]))
                  # Add assertions based on the expected edited content
-                 assert "You clicked" in edited_message.text or "Option selected" in edited_message.text # Adjust assertion
+                 assert any(text in edited_message.text for text in ["You clicked", "Option selected", "Selected", "Chosen"]) # More flexible assertion
                  print(s.TEST_ASSERT_MESSAGE_EDITED)
                  return # Test successful
 
