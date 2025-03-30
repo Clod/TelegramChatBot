@@ -196,8 +196,12 @@ def extract_text_from_gemini_response(gemini_response):
     Extract the text content from Gemini API response and format it as pipe-separated key-value pairs
     """
     try:
+        # Log the received response for debugging before checking its type
+        logger.debug(f"Attempting to extract text from Gemini response. Type: {type(gemini_response)}, Content: {str(gemini_response)[:500]}...") # Log type and preview
+
         if not isinstance(gemini_response, dict):
              logger.error(s.ERROR_GEMINI_EXTRACT_UNEXPECTED_TYPE.format(type=type(gemini_response)))
+             logger.error(f"Problematic Gemini response content: {gemini_response}") # Log the full problematic response
              return s.ERROR_GEMINI_EXTRACT_INVALID_FORMAT
 
         # Initialize all_text to collect the text from all parts
