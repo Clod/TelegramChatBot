@@ -256,7 +256,7 @@ def handle_text(message):
         # Optionally, send a confirmation specific to data entry
         bot.reply_to(message, "Data entry saved.") # Example confirmation
         # Decide if you want to send the main menu after data entry or not
-        # send_main_menu_message(chat_id) # Uncomment if you want the menu after data entry
+        send_main_menu_message(chat_id) # Uncomment if you want the menu after data entry
         return # Stop further processing in this handler for data entry
 
     # --- Default Text Handling (No Keyword Match) ---
