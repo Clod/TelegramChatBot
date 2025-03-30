@@ -243,17 +243,26 @@ def delete_user_data(user_id):
     finally:
         conn.close()
 
-def get_user_message_history(user_id, limit=10):
+def get_user_message_history(user_id, include_text=False, limit=20):
     """Get the message history for a specific user"""
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
-    cursor.execute("""
-    SELECT message_text, timestamp FROM user_messages
-    WHERE user_id = ? AND message_text IS NOT NULL AND message_text != '' AND message_text != '/start'
-      AND (message_type = ? OR message_type = ? OR message_type = ? OR message_type = ? OR message_type = ?) -- Added data_entry type
-    ORDER BY timestamp DESC LIMIT ?
-    """, (user_id, s.DB_MESSAGE_TYPE_TEXT, s.DB_MESSAGE_TYPE_PROCESSED_IMAGE, s.DB_MESSAGE_TYPE_RETRIEVED_SHEET, s.DB_MESSAGE_TYPE_RETRIEVED_FORM, s.DB_MESSAGE_TYPE_DATA_ENTRY, limit)) # Added data_entry constant
+    if include_text:   
+        cursor.execute("""
+        SELECT message_text, timestamp FROM user_messages
+        WHERE user_id = ? AND message_text IS NOT NULL AND message_text != '' AND message_text != '/start'
+        AND (message_type = ? OR message_type = ? OR message_type = ? OR message_type = ? OR message_type = ?) -- Added data_entry type
+        ORDER BY timestamp DESC LIMIT ?
+        """, (user_id, s.DB_MESSAGE_TYPE_TEXT, s.DB_MESSAGE_TYPE_PROCESSED_IMAGE, s.DB_MESSAGE_TYPE_RETRIEVED_SHEET, s.DB_MESSAGE_TYPE_RETRIEVED_FORM, s.DB_MESSAGE_TYPE_DATA_ENTRY, limit)) # Added data_entry constant
+    else:
+        cursor.execute("""
+        SELECT message_text, timestamp FROM user_messages
+        WHERE user_id = ? AND message_text IS NOT NULL AND message_text != '' AND message_text != '/start'
+        AND (message_type = ? OR message_type = ? OR message_type = ? OR message_type = ?) -- Added data_entry type
+        ORDER BY timestamp DESC LIMIT ?
+        """, (user_id, s.DB_MESSAGE_TYPE_PROCESSED_IMAGE, s.DB_MESSAGE_TYPE_RETRIEVED_SHEET, s.DB_MESSAGE_TYPE_RETRIEVED_FORM, s.DB_MESSAGE_TYPE_DATA_ENTRY, limit)) # Added data_entry constant
+ 
     messages = [dict(row) for row in cursor.fetchall()]
     conn.close()
     logger.info(s.LOG_DB_RETRIEVED_HISTORY.format(count=len(messages), user_id=user_id))
