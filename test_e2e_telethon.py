@@ -4,7 +4,7 @@ import pytest
 import pytest_asyncio
 from telethon import TelegramClient
 from telethon.tl.custom import Button
-from telethon.errors import SessionPasswordNeededError
+from telethon.errors import SessionPasswordNeededError, FloodWaitError # Import FloodWaitError
 from dotenv import load_dotenv
 from telethon import utils
 
@@ -56,8 +56,8 @@ async def telegram_client():
 
         if not await client.is_user_authorized():
             print("User not authorized. Sending code request...")
-            await client.send_code_request(phone)
             try:
+                await client.send_code_request(phone)
                 code = input("Enter the code you received: ")
                 await client.sign_in(phone, code)
                 print("Signed in successfully.")
@@ -65,6 +65,9 @@ async def telegram_client():
                 password = input("Two-step verification enabled. Please enter your password: ")
                 await client.sign_in(password=password)
                 print("Signed in successfully with password.")
+            except FloodWaitError as e:
+                pytest.fail(f"FloodWaitError during login: Telegram requires waiting {e.seconds} seconds. "
+                            f"Delete '{session_name}.session' and wait before retrying. Error: {e}")
             except Exception as e:
                 pytest.fail(f"Failed to sign in: {e}")
         else:
@@ -78,13 +81,14 @@ async def telegram_client():
         print("\nDisconnecting Telegram client...")
         await client.disconnect()
         print("Client disconnected.")
-        # Clean up session files after tests run
-        if os.path.exists(f"{session_name}.session"):
-            os.remove(f"{session_name}.session")
-            print(f"Removed {session_name}.session")
-        if os.path.exists(f"{session_name}.session-journal"):
-            os.remove(f"{session_name}.session-journal")
-            print(f"Removed {session_name}.session-journal")
+        # --- DO NOT DELETE SESSION FILES ---
+        # Let the session persist to avoid re-login and FloodWaitErrors
+        # if os.path.exists(f"{session_name}.session"):
+        #     os.remove(f"{session_name}.session")
+        #     print(f"Removed {session_name}.session")
+        # if os.path.exists(f"{session_name}.session-journal"):
+        #     os.remove(f"{session_name}.session-journal")
+        #     print(f"Removed {session_name}.session-journal")
 
 
 @pytest.mark.asyncio
