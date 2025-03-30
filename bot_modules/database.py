@@ -251,9 +251,9 @@ def get_user_message_history(user_id, limit=10):
     cursor.execute("""
     SELECT message_text, timestamp FROM user_messages
     WHERE user_id = ? AND message_text IS NOT NULL AND message_text != '' AND message_text != '/start'
-      AND (message_type = ? OR message_type = ? OR message_type = ? OR message_type = ?)
+      AND (message_type = ? OR message_type = ? OR message_type = ? OR message_type = ? OR message_type = ?) -- Added data_entry type
     ORDER BY timestamp DESC LIMIT ?
-    """, (user_id, s.DB_MESSAGE_TYPE_TEXT, s.DB_MESSAGE_TYPE_PROCESSED_IMAGE, s.DB_MESSAGE_TYPE_RETRIEVED_SHEET, s.DB_MESSAGE_TYPE_RETRIEVED_FORM, limit))
+    """, (user_id, s.DB_MESSAGE_TYPE_TEXT, s.DB_MESSAGE_TYPE_PROCESSED_IMAGE, s.DB_MESSAGE_TYPE_RETRIEVED_SHEET, s.DB_MESSAGE_TYPE_RETRIEVED_FORM, s.DB_MESSAGE_TYPE_DATA_ENTRY, limit)) # Added data_entry constant
     messages = [dict(row) for row in cursor.fetchall()]
     conn.close()
     logger.info(s.LOG_DB_RETRIEVED_HISTORY.format(count=len(messages), user_id=user_id))
