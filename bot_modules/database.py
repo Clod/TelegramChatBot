@@ -99,6 +99,7 @@ def log_interaction(user_id, action_type, action_data=None):
 def save_message(message, message_type_override=None, text_override=None):
     """Save a user message to the database, allowing overrides for type and text."""
     user_id = message.from_user.id
+    chat_id = message.chat.id # Add this line back
     message_id = message.message_id
 
     # Determine final message type and text
