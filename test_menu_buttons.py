@@ -1,3 +1,49 @@
+"""
+Telegram Bot Menu Button Tests
+
+This module contains automated tests for Telegram bot menu button interactions using Telethon.
+It tests the functionality of various menu buttons and navigation flows in a Telegram bot.
+
+The tests verify:
+1. Main menu appears with expected buttons
+2. View My Data button works and displays user data
+3. Settings submenu appears when clicking the Settings button
+4. Back button returns to the main menu from submenus
+
+Requirements:
+- Python 3.7+
+- pytest
+- pytest-asyncio
+- telethon
+- python-dotenv
+
+Environment variables (in .env file):
+- TELEGRAM_API_ID: Your Telegram API ID (integer)
+- TELEGRAM_API_HASH: Your Telegram API hash (string)
+- TELEGRAM_PHONE: Your phone number in international format
+- TELEGRAM_BOT_USERNAME: Username of the bot to test
+
+Before running:
+1. Create a .env file with the required environment variables
+2. Run auth_telethon.py to authenticate with Telegram
+3. Ensure the bot is running and accessible
+
+Usage:
+    # Run all tests
+    pytest test_menu_buttons.py -v
+    
+    # Run a specific test
+    pytest test_menu_buttons.py::test_main_menu -v
+    
+    # Run with auto mode for asyncio
+    pytest test_menu_buttons.py -v --asyncio-mode=auto
+
+Notes:
+- Tests use a function-scoped fixture to avoid event loop issues
+- The bot entity is stored globally to improve performance
+- Tests will be skipped if required credentials are missing
+- Increase sleep durations if your bot has slow response times
+"""
 import asyncio
 import os
 import pytest
