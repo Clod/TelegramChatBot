@@ -360,9 +360,20 @@ def handle_callback_query(call):
                 )
                 if user_data.get('recent_messages'):
                     for i, msg in enumerate(user_data['recent_messages'], 1):
-                        msg_text = msg.get('message_text', '[Media]')
-                        ellipsis = '...' if len(msg_text)>30 else ''
-                        data_text += s.CALLBACK_DATA_SUMMARY_RECENT_MSG.format(index=i, text_preview=msg_text[:30], ellipsis=ellipsis)
+                        msg_text = msg.get('message_text') # Get text, might be None or other type
+                        if msg_text is None:
+                            text_preview = s.CALLBACK_DATA_SUMMARY_NO_TEXT # Use placeholder for None
+                            ellipsis = ''
+                        elif isinstance(msg_text, str):
+                            # Only calculate len() and slice if it's a string
+                            ellipsis = '...' if len(msg_text) > 30 else ''
+                            text_preview = msg_text[:30]
+                        else:
+                            # Handle unexpected non-string, non-None type
+                            logger.warning(f"Unexpected type for message_text in view_my_data: {type(msg_text)}, value: {repr(msg_text)}")
+                            text_preview = s.CALLBACK_DATA_SUMMARY_NO_TEXT # Use placeholder
+                            ellipsis = ''
+                        data_text += s.CALLBACK_DATA_SUMMARY_RECENT_MSG.format(index=i, text_preview=text_preview, ellipsis=ellipsis)
                 else: data_text += s.CALLBACK_DATA_SUMMARY_NO_RECENT
                 markup = InlineKeyboardMarkup().add(InlineKeyboardButton(s.BUTTON_BACK_MAIN_MENU, callback_data=s.CALLBACK_DATA_MAIN_MENU))
                 bot.edit_message_text(data_text, chat_id, message_id, reply_markup=markup)
