@@ -1,6 +1,8 @@
 import pytest
+import pytest_asyncio
 
-@pytest.fixture(scope="session")
+# Use pytest_asyncio for the event loop fixture
+@pytest_asyncio.fixture(scope="session")
 def event_loop():
     """Create an instance of the default event loop for each test case."""
     import asyncio

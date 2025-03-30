@@ -1,6 +1,7 @@
 import asyncio
 import os
 import pytest
+import pytest_asyncio
 from telethon import TelegramClient
 from telethon.tl.custom import Button
 from dotenv import load_dotenv
@@ -28,7 +29,7 @@ pytestmark = pytest.mark.skipif(
 )
 
 # Important: Use function scope for the client to avoid event loop issues
-@pytest.fixture(scope="function")
+@pytest_asyncio.fixture(scope="function")
 async def telegram_client():
     """Create a new client for each test function to avoid event loop issues."""
     # Create and connect the client
