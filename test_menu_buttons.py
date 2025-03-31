@@ -190,12 +190,12 @@ async def test_delete_my_data(telegram_client):
     assert delete_button is not None, "Delete My Data button not found"
     await main_menu.click(text=delete_button.text)
     await asyncio.sleep(2)
-    
+
     # Get the confirmation menu message (newest message with buttons)
     messages = await telegram_client.get_messages(bot_target, limit=5)
-    confirm_menu = next((msg for msg in messages if msg.buttons and msg.id != main_menu.id), None)
+    confirm_menu = next((msg for msg in reversed(messages) if msg.buttons), None)
     assert confirm_menu is not None, "Confirmation menu not received"
-    
+
     # Find and click Yes button
     buttons_text = []
     if confirm_menu and confirm_menu.buttons:
