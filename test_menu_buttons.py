@@ -167,29 +167,54 @@ async def test_main_menu(telegram_client):
     expected_buttons = ["Analyze My Messages", "View My Data", "Delete My Data", "Edit My Messages"]  # Adjust these to match your actual button names
     for expected in expected_buttons:
         assert any(expected in btn for btn in button_texts), f"Expected button '{expected}' not found"
+        
+        
+#########
+
+import asyncio
+import logging
+import pytest
+
+from telethon import TelegramClient
+from telethon.types import Message, PeerUser
+
+
+logger = logging.getLogger(__name__)
+
 
 @pytest.mark.asyncio
-async def test_delete_my_data(telegram_client):
+async def test_delete_my_data(telegram_client: TelegramClient):
     """Test the complete delete my data flow including confirmation."""
     # Get the main menu
     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    await telegram_client.send_message(bot_target, "/start")
+
+    # Ensure bot_target is an entity Telethon can work with
+    if isinstance(bot_target, int):
+        bot_target = PeerUser(bot_target)  # Create a PeerUser object
+
+
+    try:
+        await telegram_client.send_message(bot_target, "/start")
+    except Exception as e:
+        logger.error(f"Failed to send /start message: {e}")
+        raise  # Re-raise the exception to fail the test
+
     await asyncio.sleep(2)
-    
+
     # Get the main menu message
     messages = await telegram_client.get_messages(bot_target, limit=5)
     main_menu = next((msg for msg in messages if msg.buttons), None)
     assert main_menu is not None, "Main menu not received"
-    
+
     # Find and click Delete My Data button
     delete_button = next(
-        (btn for row in main_menu.buttons 
+        (btn for row in main_menu.buttons
          for btn in row if "Delete My Data" in btn.text),
         None
     )
     assert delete_button is not None, "Delete My Data button not found"
     await main_menu.click(text=delete_button.text)
-    await asyncio.sleep(2)
+    await asyncio.sleep(8)
 
     # Get the confirmation menu message (newest message with buttons)
     messages = await telegram_client.get_messages(bot_target, limit=5)
@@ -198,29 +223,39 @@ async def test_delete_my_data(telegram_client):
     print(f"Confirm menu text: {confirm_menu.text}")
 
     # Find and click Yes button
-    buttons_text = []
+    yes_button = None  # Initialize yes_button to None
+
     if confirm_menu and confirm_menu.buttons:
         for row in confirm_menu.buttons:
             for btn in row:
-                buttons_text.append(btn.text)
-    yes_button = next(
-        (btn for row in confirm_menu.buttons
-         for btn in row if "yes" in btn.text.lower() or "confirm" in btn.text.lower()),
-        None
-    )
-    assert yes_button is not None, f"Confirmation button not found. Available buttons: {buttons_text}"
+                if "yes" in btn.text.lower() or "confirm" in btn.text.lower():
+                    yes_button = btn
+                    break  # Exit inner loop after finding the button
+            if yes_button:
+                break  # Exit outer loop if button is found
+
+    if yes_button is None:
+        buttons_text = []
+        if confirm_menu and confirm_menu.buttons:
+            for row in confirm_menu.buttons:
+                for btn in row:
+                    buttons_text.append(btn.text)
+        assert False, f"Confirmation button not found. Available buttons: {buttons_text}. Confirm Menu text: {confirm_menu.text if confirm_menu else 'No Confirm Menu'}"
+
     await confirm_menu.click(text=yes_button.text)
     await asyncio.sleep(4)
 
     # Verify deletion confirmation message
     messages = await telegram_client.get_messages(bot_target, limit=5)
     deletion_msg = next(
-        (msg for msg in messages 
+        (msg for msg in messages
          if msg.text and ("deleted" in msg.text.lower() or "removed" in msg.text.lower())),
         None
     )
     assert deletion_msg is not None, "Deletion confirmation not received"
     logger.info(f"Received deletion confirmation: {deletion_msg.text[:100]}...")
+    
+#########
 
 
 @pytest.mark.asyncio
