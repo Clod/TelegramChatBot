@@ -220,19 +220,13 @@ async def test_delete_my_data(telegram_client: TelegramClient):
     messages = await telegram_client.get_messages(bot_target, limit=5)
     confirm_menu = next((msg for msg in reversed(messages) if msg.buttons), None)
     assert confirm_menu is not None, "Confirmation menu not received"
-    print(f"Confirm menu text: {confirm_menu.text}")
 
     # Find and click Yes button
-    yes_button = None  # Initialize yes_button to None
-
-    if confirm_menu and confirm_menu.buttons:
-        for row in confirm_menu.buttons:
-            for btn in row:
-                if "yes" in btn.text.lower() or "confirm" in btn.text.lower():
-                    yes_button = btn
-                    break  # Exit inner loop after finding the button
-            if yes_button:
-                break  # Exit outer loop if button is found
+    yes_button = next(
+        (btn for row in confirm_menu.buttons
+         for btn in row if "yes" in btn.text.lower() or "confirm" in btn.text.lower()),
+        None
+    )
 
     if yes_button is None:
         buttons_text = []
@@ -242,8 +236,11 @@ async def test_delete_my_data(telegram_client: TelegramClient):
                     buttons_text.append(btn.text)
         assert False, f"Confirmation button not found. Available buttons: {buttons_text}. Confirm Menu text: {confirm_menu.text if confirm_menu else 'No Confirm Menu'}"
 
-    await confirm_menu.click(text=yes_button.text)
-    await asyncio.sleep(4)
+    if yes_button:
+        await confirm_menu.click(text=yes_button.text)
+        await asyncio.sleep(4)
+    else:
+        assert False, "No 'yes' or 'confirm' button found in confirmation menu"
 
     # Verify deletion confirmation message
     messages = await telegram_client.get_messages(bot_target, limit=5)
