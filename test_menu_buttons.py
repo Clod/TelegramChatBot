@@ -259,59 +259,38 @@ async def test_send_text_and_get_response(telegram_client):
 
 
 @pytest.mark.asyncio
-async def test_send_file_and_get_response(telegram_client):
-    """Test sending a file to the bot and getting a response."""
-    # Create a simple test file
-    test_file = "test_file.txt"
-    with open(test_file, "w") as f:
-        f.write("This is a test file for the Telegram bot")
+async def test_send_image_and_get_response(telegram_client):
+    """Test sending an image to the bot and verifying analysis."""
+    test_image = "images/cadorna.jpeg"
+    
+    # Verify image exists
+    if not os.path.exists(test_image):
+        pytest.skip(f"Test image not found at {test_image}")
 
-    try:
-        # Send the file to the bot
-        bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-        await telegram_client.send_file(bot_target, test_file)
+    # Send the image
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    await telegram_client.send_file(bot_target, test_image, caption="Test image")
 
-        # Wait for response
-        await asyncio.sleep(3)
+    # Wait for processing (longer timeout for image analysis)
+    await asyncio.sleep(8)
 
-        # Get the most recent messages
-        messages = await telegram_client.get_messages(bot_target, limit=5)
-        file_received = False
-        processing_response = False
+    # Check responses
+    messages = await telegram_client.get_messages(bot_target, limit=5)
+    
+    # Verify processing acknowledgment
+    processing_msg = next((msg for msg in messages 
+                         if msg.text and "processing" in msg.text.lower()), None)
+    assert processing_msg, "Bot did not acknowledge image processing"
 
-        # Check bot responses
-        for msg in messages:
-            print(msg.text)
-            if msg.text and ("processing your file" in msg.text.lower() or 
-                            "processing your image" in msg.text.lower() or
-                            "file received" in msg.text.lower()):
-                processing_response = True
-                logger.info(f"Bot acknowledged file upload: {msg.text[:100]}...")
-                break
+    # Wait for final analysis
+    await asyncio.sleep(12)
+    messages = await telegram_client.get_messages(bot_target, limit=5)
 
-        assert processing_response, "Bot did not acknowledge receiving the file"
-
-        # Wait longer for processing to complete
-        await asyncio.sleep(5)
-
-        # Check for final response
-        messages = await telegram_client.get_messages(bot_target, limit=5)
-        analysis_received = False
-
-        for msg in messages:
-            if msg.text and ("analysis" in msg.text.lower() or 
-                           "results" in msg.text.lower() or
-                           "extracted" in msg.text.lower()):
-                analysis_received = True
-                logger.info(f"Bot provided analysis: {msg.text[:100]}...")
-                break
-
-        assert analysis_received, "Bot did not provide analysis of the file"
-
-    finally:
-        # Clean up test file
-        if os.path.exists(test_file):
-            os.remove(test_file)
+    # Verify analysis contains expected content
+    analysis_msg = next((msg for msg in messages
+                        if msg.text and "cadorna" in msg.text.lower()), None)
+    assert analysis_msg, "Bot did not provide analysis containing expected content"
+    logger.info(f"Received analysis: {analysis_msg.text[:200]}...")
 
 
 # @pytest.mark.asyncio
