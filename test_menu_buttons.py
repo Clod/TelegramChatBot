@@ -197,15 +197,20 @@ async def test_delete_my_data(telegram_client):
     assert confirm_menu is not None, "Confirmation menu not received"
     
     # Find and click Yes button
+    buttons_text = []
+    if confirm_menu and confirm_menu.buttons:
+        for row in confirm_menu.buttons:
+            for btn in row:
+                buttons_text.append(btn.text)
     yes_button = next(
-        (btn for row in confirm_menu.buttons 
-         for btn in row if "Yes" in btn.text or "Confirm" in btn.text),
+        (btn for row in confirm_menu.buttons
+         for btn in row if "yes" in btn.text.lower() or "confirm" in btn.text.lower()),
         None
     )
-    assert yes_button is not None, "Confirmation button not found"
+    assert yes_button is not None, f"Confirmation button not found. Available buttons: {buttons_text}"
     await confirm_menu.click(text=yes_button.text)
     await asyncio.sleep(4)
-    
+
     # Verify deletion confirmation message
     messages = await telegram_client.get_messages(bot_target, limit=5)
     deletion_msg = next(
