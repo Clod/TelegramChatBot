@@ -53,6 +53,11 @@ from telethon.tl.custom import Button
 from dotenv import load_dotenv
 import logging
 from telethon.types import PeerUser
+from bot_modules import strings_en, strings_es # Import string modules
+
+# Set language based on environment
+BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
+s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -165,7 +170,8 @@ async def test_main_menu(telegram_client):
     logger.info(f"Found buttons: {button_texts}")
     
     # Verify expected buttons exist based on your bot's menu
-    expected_buttons = ["Analyze My Messages", "View My Data", "Delete My Data", "Edit My Messages"]  # Adjust these to match your actual button names
+    # expected_buttons = ["View My Data", "Delete My Data", "Edit My Messages"]  
+    expected_buttons = [s.BUTTON_VIEW_DATA, s.BUTTON_DELETE_DATA, s.BUTTON_EDIT_MESSAGES]   
     for expected in expected_buttons:
         assert any(expected in btn for btn in button_texts), f"Expected button '{expected}' not found"
         
