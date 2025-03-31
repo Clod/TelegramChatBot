@@ -195,6 +195,7 @@ async def test_delete_my_data(telegram_client):
     messages = await telegram_client.get_messages(bot_target, limit=5)
     confirm_menu = next((msg for msg in reversed(messages) if msg.buttons), None)
     assert confirm_menu is not None, "Confirmation menu not received"
+    print(f"Confirm menu text: {confirm_menu.text}")
 
     # Find and click Yes button
     buttons_text = []
