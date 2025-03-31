@@ -169,6 +169,119 @@ async def test_main_menu(telegram_client):
         assert any(expected in btn for btn in button_texts), f"Expected button '{expected}' not found"
 
 @pytest.mark.asyncio
+async def test_delete_my_data(telegram_client):
+    """Test that the main menu appears and has expected buttons."""
+    # Send the /start command to get the main menu
+    # Use the bot entity if available, otherwise use the ID
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    await telegram_client.send_message(bot_target, "/start")
+    
+    # Wait briefly for the response
+    await asyncio.sleep(2)
+    
+    # Get the most recent message from the bot
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    messages = await telegram_client.get_messages(bot_target, limit=5)
+    menu_message = None
+    
+    # Find the message with buttons
+    for msg in messages:
+        if msg.buttons:
+            menu_message = msg
+            break
+    
+    # Verify we got a menu with buttons
+    assert menu_message is not None, "No menu with buttons was received"
+    
+    # Find and click the Delete My Data button
+    delete_my_data_button = None
+    for row in menu_message.buttons:
+        for button in row:
+            if "Delete My Data" in button.text:  # Adjust this to match your actual button name
+                delete_my_data_button = button
+                break
+        if delete_my_data_button:
+            break
+    
+    assert delete_my_data_button is not None, "Delete My Data button not found"
+    
+    # Click the button
+    await menu_message.click(text=delete_my_data_button.text)
+    
+    # Wait for response
+    await asyncio.sleep(2)
+    
+    # Find and click the confirmation button
+    yes_delete_my_data_button = None
+    for row in menu_message.buttons:
+        for button in row:
+            if "Yes, Delete My Data" in button.text:  # Adjust this to match your actual button name
+                yes_delete_my_data_button = button
+                break
+        if yes_delete_my_data_button:
+            break
+    
+    assert yes_delete_my_data_button is not None, "Yes, Delete My Data button not found"
+    
+    button.click(text=yes_delete_my_data_button.text)
+    
+    # Wait for response
+    await asyncio.sleep(2)
+    
+    # Wait briefly for the response
+    await asyncio.sleep(4)
+
+    # Get the most recent message from the bot
+    messages = await telegram_client.get_messages(bot_target, limit=5)
+    response_received = False
+
+    # Check if the bot responded with the expected text
+    for msg in messages:
+        print(msg.text)
+        if msg.text and "data deleted" in msg.text.lower():
+            response_received = True
+            logger.info(f"Received expected response: {msg.text[:100]}...")
+            break
+    # print(response_received)
+    assert response_received, "Bot did not respond with the expected text"
+
+
+@pytest.mark.asyncio
+async def test_send_image_and_get_response(telegram_client):
+    """Test sending an image to the bot and verifying analysis."""
+    test_image = "images/cadorna.jpeg"
+    
+    # Verify image exists
+    if not os.path.exists(test_image):
+        pytest.skip(f"Test image not found at {test_image}")
+
+    # Send the image
+    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    await telegram_client.send_file(bot_target, test_image, caption="Test image")
+
+    # Wait longer for processing (since we're skipping the intermediate check)
+    await asyncio.sleep(15)  # Increased wait time
+
+    # Get all recent messages
+    messages = await telegram_client.get_messages(bot_target, limit=10)
+    
+    # Verify final analysis contains expected content
+    analysis_msg = next(
+        (msg for msg in messages 
+         if msg.text and ("cadorna" in msg.text.lower() or 
+                         "luigi" in msg.text.lower() or
+                         "general" in msg.text.lower())),
+        None
+    )
+    
+    assert analysis_msg, (
+        "Bot did not provide analysis containing expected content. "
+        f"Messages received: {[msg.text[:50] + '...' if msg.text else 'None' for msg in messages]}"
+    )
+    
+    logger.info(f"Received analysis: {analysis_msg.text[:200]}...")
+    
+@pytest.mark.asyncio
 async def test_view_my_data_button(telegram_client):
     """Test clicking the View My Data button in the main menu."""
     # First get the main menu
@@ -188,7 +301,7 @@ async def test_view_my_data_button(telegram_client):
     
     assert menu_message is not None, "No menu with buttons was received"
     
-    # Find and click the Help button
+    # Find and click the View My Data button
     view_my_data_button = None
     for row in menu_message.buttons:
         for button in row:
@@ -238,10 +351,10 @@ async def test_send_text_and_get_response(telegram_client):
     """Test sending a text message and getting a specific response."""
     # Send a text message to the bot
     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    await telegram_client.send_message(bot_target, "Abracadabra")
+    await telegram_client.send_message(bot_target, "Cómo se llama el paciente?")
 
     # Wait briefly for the response
-    await asyncio.sleep(2)
+    await asyncio.sleep(4)
 
     # Get the most recent message from the bot
     messages = await telegram_client.get_messages(bot_target, limit=5)
@@ -249,49 +362,13 @@ async def test_send_text_and_get_response(telegram_client):
 
     # Check if the bot responded with the expected text
     for msg in messages:
-        # print(msg.text)
-        if msg.text and "no hay preguntas" in msg.text.lower():
+        print(msg.text)
+        if msg.text and "cadorna" in msg.text.lower():
             response_received = True
             logger.info(f"Received expected response: {msg.text[:100]}...")
             break
     # print(response_received)
     assert response_received, "Bot did not respond with the expected text"
-
-
-@pytest.mark.asyncio
-async def test_send_image_and_get_response(telegram_client):
-    """Test sending an image to the bot and verifying analysis."""
-    test_image = "images/cadorna.jpeg"
-    
-    # Verify image exists
-    if not os.path.exists(test_image):
-        pytest.skip(f"Test image not found at {test_image}")
-
-    # Send the image
-    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    await telegram_client.send_file(bot_target, test_image, caption="Test image")
-
-    # Wait longer for processing (since we're skipping the intermediate check)
-    await asyncio.sleep(15)  # Increased wait time
-
-    # Get all recent messages
-    messages = await telegram_client.get_messages(bot_target, limit=10)
-    
-    # Verify final analysis contains expected content
-    analysis_msg = next(
-        (msg for msg in messages 
-         if msg.text and ("cadorna" in msg.text.lower() or 
-                         "luigi" in msg.text.lower() or
-                         "general" in msg.text.lower())),
-        None
-    )
-    
-    assert analysis_msg, (
-        "Bot did not provide analysis containing expected content. "
-        f"Messages received: {[msg.text[:50] + '...' if msg.text else 'None' for msg in messages]}"
-    )
-    
-    logger.info(f"Received analysis: {analysis_msg.text[:200]}...")
 
 
 # @pytest.mark.asyncio
