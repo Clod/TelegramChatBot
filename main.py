@@ -2,7 +2,6 @@
 import logging
 import os
 import getpass
-import traceback
 import telebot # Keep for ApiTelegramException
 
 # Import from our modules

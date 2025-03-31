@@ -214,7 +214,7 @@ def get_user_data_summary(user_id):
         summary['interaction_count'] = interaction_count['count'] if interaction_count else 0
         cursor.execute("SELECT action_type, COUNT(*) as count FROM user_interactions WHERE user_id = ? GROUP BY action_type ORDER BY count DESC", (user_id,))
         summary['interaction_types'] = [dict(row) for row in cursor.fetchall()]
-        cursor.execute("SELECT message_text, timestamp FROM user_messages WHERE user_id = ? ORDER BY timestamp DESC LIMIT 5", (user_id,))
+        cursor.execute("SELECT message_text, timestamp FROM user_messages WHERE user_id = ? ORDER BY timestamp DESC LIMIT 20", (user_id,))
         summary['recent_messages'] = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return summary

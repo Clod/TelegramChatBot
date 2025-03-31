@@ -28,12 +28,12 @@ user_sessions = {}
 def generate_main_menu():
     markup = InlineKeyboardMarkup()
     markup.row_width = 2
-    markup.add(
-        InlineKeyboardButton(s.BUTTON_ANALYZE_MESSAGES, callback_data=s.CALLBACK_DATA_MENU1),
-        # InlineKeyboardButton(s.BUTTON_RETRIEVE_FORM, callback_data=s.CALLBACK_DATA_RETRIEVE_FORM),
-        # InlineKeyboardButton(s.BUTTON_RETRIEVE_SHEET, callback_data=s.CALLBACK_DATA_RETRIEVE_SHEET),
-        # InlineKeyboardButton(s.BUTTON_MENU2, callback_data=s.CALLBACK_DATA_MENU2)
-    )
+    # markup.add(
+    #     InlineKeyboardButton(s.BUTTON_ANALYZE_MESSAGES, callback_data=s.CALLBACK_DATA_MENU1),
+    #     InlineKeyboardButton(s.BUTTON_RETRIEVE_FORM, callback_data=s.CALLBACK_DATA_RETRIEVE_FORM),
+    #     InlineKeyboardButton(s.BUTTON_RETRIEVE_SHEET, callback_data=s.CALLBACK_DATA_RETRIEVE_SHEET),
+    #     InlineKeyboardButton(s.BUTTON_MENU2, callback_data=s.CALLBACK_DATA_MENU2)
+    # )
     markup.add(InlineKeyboardButton(s.BUTTON_VIEW_DATA, callback_data=s.CALLBACK_DATA_VIEW_DATA))
     markup.add(InlineKeyboardButton(s.BUTTON_DELETE_DATA, callback_data=s.CALLBACK_DATA_DELETE_DATA))
 
@@ -443,6 +443,9 @@ def handle_callback_query(call):
                             text_preview = s.CALLBACK_DATA_SUMMARY_NO_TEXT # Use placeholder for None
                             ellipsis = ''
                         elif isinstance(msg_text, str):
+                            # Do not display "/start" messages
+                            if msg_text.lower() == "/start":
+                                continue
                             # Only calculate len() and slice if it's a string
                             ellipsis = '...' if len(msg_text) > 30 else ''
                             text_preview = msg_text[:30]
