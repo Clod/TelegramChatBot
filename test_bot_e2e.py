@@ -53,7 +53,16 @@ from telethon.tl.custom import Button
 from dotenv import load_dotenv
 import logging
 from telethon.types import PeerUser
-from bot_modules import strings_en, strings_es # Import string modules
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+
+try:
+    from bot_modules import strings_en, strings_es # Import string modules
+except ImportError as e:
+    print(f"Import error: {e}")
+    print(f"Current sys.path: {sys.path}")
+    raise
 
 # Set language based on environment
 BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
@@ -546,3 +555,4 @@ async def test_send_text_and_get_response(telegram_client):
     #             break
     
     # assert back_to_main, "Did not return to main menu after clicking Back button"
+# This file makes the directory a Python package
