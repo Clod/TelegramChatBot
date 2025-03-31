@@ -258,6 +258,62 @@ async def test_send_text_and_get_response(telegram_client):
     assert response_received, "Bot did not respond with the expected text"
 
 
+@pytest.mark.asyncio
+async def test_send_file_and_get_response(telegram_client):
+    """Test sending a file to the bot and getting a response."""
+    # Create a simple test file
+    test_file = "test_file.txt"
+    with open(test_file, "w") as f:
+        f.write("This is a test file for the Telegram bot")
+
+    try:
+        # Send the file to the bot
+        bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+        await telegram_client.send_file(bot_target, test_file)
+
+        # Wait for response
+        await asyncio.sleep(3)
+
+        # Get the most recent messages
+        messages = await telegram_client.get_messages(bot_target, limit=5)
+        file_received = False
+        processing_response = False
+
+        # Check bot responses
+        for msg in messages:
+            print(msg.text)
+            if msg.text and ("processing your file" in msg.text.lower() or 
+                            "processing your image" in msg.text.lower() or
+                            "file received" in msg.text.lower()):
+                processing_response = True
+                logger.info(f"Bot acknowledged file upload: {msg.text[:100]}...")
+                break
+
+        assert processing_response, "Bot did not acknowledge receiving the file"
+
+        # Wait longer for processing to complete
+        await asyncio.sleep(5)
+
+        # Check for final response
+        messages = await telegram_client.get_messages(bot_target, limit=5)
+        analysis_received = False
+
+        for msg in messages:
+            if msg.text and ("analysis" in msg.text.lower() or 
+                           "results" in msg.text.lower() or
+                           "extracted" in msg.text.lower()):
+                analysis_received = True
+                logger.info(f"Bot provided analysis: {msg.text[:100]}...")
+                break
+
+        assert analysis_received, "Bot did not provide analysis of the file"
+
+    finally:
+        # Clean up test file
+        if os.path.exists(test_file):
+            os.remove(test_file)
+
+
 # @pytest.mark.asyncio
 # async def test_settings_submenu(telegram_client):
 #     """Test that the settings submenu appears when clicking Settings."""
