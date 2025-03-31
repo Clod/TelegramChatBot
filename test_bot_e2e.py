@@ -28,6 +28,8 @@ Before running:
 2. Run auth_telethon.py to authenticate with Telegram
 3. Ensure the bot is running and accessible
 
+PYTHONPATH=$PYTHONPATH:. pytest test_bot_e2e.py -v
+
 Usage:
     # Run all tests
     pytest test_menu_buttons.py -v
