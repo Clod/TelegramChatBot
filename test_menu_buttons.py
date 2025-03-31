@@ -170,80 +170,51 @@ async def test_main_menu(telegram_client):
 
 @pytest.mark.asyncio
 async def test_delete_my_data(telegram_client):
-    """Test that the main menu appears and has expected buttons."""
-    # Send the /start command to get the main menu
-    # Use the bot entity if available, otherwise use the ID
+    """Test the complete delete my data flow including confirmation."""
+    # Get the main menu
     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
     await telegram_client.send_message(bot_target, "/start")
-    
-    # Wait briefly for the response
     await asyncio.sleep(2)
     
-    # Get the most recent message from the bot
-    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    # Get the main menu message
     messages = await telegram_client.get_messages(bot_target, limit=5)
-    menu_message = None
+    main_menu = next((msg for msg in messages if msg.buttons), None)
+    assert main_menu is not None, "Main menu not received"
     
-    # Find the message with buttons
-    for msg in messages:
-        if msg.buttons:
-            menu_message = msg
-            break
-    
-    # Verify we got a menu with buttons
-    assert menu_message is not None, "No menu with buttons was received"
-    
-    # Find and click the Delete My Data button
-    delete_my_data_button = None
-    for row in menu_message.buttons:
-        for button in row:
-            if "Delete My Data" in button.text:  # Adjust this to match your actual button name
-                delete_my_data_button = button
-                break
-        if delete_my_data_button:
-            break
-    
-    assert delete_my_data_button is not None, "Delete My Data button not found"
-    
-    # Click the button
-    await menu_message.click(text=delete_my_data_button.text)
-    
-    # Wait for response
+    # Find and click Delete My Data button
+    delete_button = next(
+        (btn for row in main_menu.buttons 
+         for btn in row if "Delete My Data" in btn.text),
+        None
+    )
+    assert delete_button is not None, "Delete My Data button not found"
+    await main_menu.click(text=delete_button.text)
     await asyncio.sleep(2)
     
-    # Find and click the confirmation button
-    yes_delete_my_data_button = None
-    for row in menu_message.buttons:
-        for button in row:
-            if "Yes, Delete My Data" in button.text:  # Adjust this to match your actual button name
-                yes_delete_my_data_button = button
-                break
-        if yes_delete_my_data_button:
-            break
+    # Get the confirmation menu message (newest message with buttons)
+    messages = await telegram_client.get_messages(bot_target, limit=5)
+    confirm_menu = next((msg for msg in messages if msg.buttons and msg.id != main_menu.id), None)
+    assert confirm_menu is not None, "Confirmation menu not received"
     
-    assert yes_delete_my_data_button is not None, "Yes, Delete My Data button not found"
-    
-    button.click(text=yes_delete_my_data_button.text)
-    
-    # Wait for response
-    await asyncio.sleep(2)
-    
-    # Wait briefly for the response
+    # Find and click Yes button
+    yes_button = next(
+        (btn for row in confirm_menu.buttons 
+         for btn in row if "Yes" in btn.text or "Confirm" in btn.text),
+        None
+    )
+    assert yes_button is not None, "Confirmation button not found"
+    await confirm_menu.click(text=yes_button.text)
     await asyncio.sleep(4)
-
-    # Get the most recent message from the bot
+    
+    # Verify deletion confirmation message
     messages = await telegram_client.get_messages(bot_target, limit=5)
-    response_received = False
-
-    # Check if the bot responded with the expected text
-    for msg in messages:
-        print(msg.text)
-        if msg.text and "data deleted" in msg.text.lower():
-            response_received = True
-            logger.info(f"Received expected response: {msg.text[:100]}...")
-            break
-    # print(response_received)
-    assert response_received, "Bot did not respond with the expected text"
+    deletion_msg = next(
+        (msg for msg in messages 
+         if msg.text and ("deleted" in msg.text.lower() or "removed" in msg.text.lower())),
+        None
+    )
+    assert deletion_msg is not None, "Deletion confirmation not received"
+    logger.info(f"Received deletion confirmation: {deletion_msg.text[:100]}...")
 
 
 @pytest.mark.asyncio
