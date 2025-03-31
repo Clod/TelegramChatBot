@@ -192,7 +192,6 @@ async def test_delete_my_data(telegram_client: TelegramClient):
     if isinstance(bot_target, int):
         bot_target = PeerUser(bot_target)  # Create a PeerUser object
 
-
     try:
         await telegram_client.send_message(bot_target, "/start")
     except Exception as e:
@@ -216,10 +215,25 @@ async def test_delete_my_data(telegram_client: TelegramClient):
     await main_menu.click(text=delete_button.text)
     await asyncio.sleep(8)
 
-    # Get the confirmation menu message (newest message with buttons)
-    messages = await telegram_client.get_messages(bot_target, limit=5)
-    confirm_menu = next((msg for msg in reversed(messages) if msg.buttons), None)
-    assert confirm_menu is not None, "Confirmation menu not received"
+    # Retry logic for getting the confirmation menu
+    for attempt in range(3):
+        try:
+            # Get the confirmation menu message (newest message with buttons)
+            messages = await telegram_client.get_messages(bot_target, limit=5)
+            confirm_menu = next(
+                (msg for msg in reversed(messages)
+                 if msg.buttons and any("yes" in btn.text.lower() or "no" in btn.text.lower()
+                                         for row in msg.buttons for btn in row)),
+                None
+            )
+            if confirm_menu is None:
+                raise AssertionError("Confirmation menu not received")
+            break  # Exit the loop if successful
+        except AssertionError as e:
+            logger.warning(f"Attempt {attempt + 1}: Confirmation menu not received: {e}")
+            if attempt == 2:
+                raise  # Re-raise the exception after the last attempt
+            await asyncio.sleep(5)  # Wait before retrying
 
     # Find and click Yes button
     yes_button = next(
@@ -242,15 +256,25 @@ async def test_delete_my_data(telegram_client: TelegramClient):
     else:
         assert False, "No 'yes' or 'confirm' button found in confirmation menu"
 
-    # Verify deletion confirmation message
-    messages = await telegram_client.get_messages(bot_target, limit=5)
-    deletion_msg = next(
-        (msg for msg in messages
-         if msg.text and ("deleted" in msg.text.lower() or "removed" in msg.text.lower())),
-        None
-    )
-    assert deletion_msg is not None, "Deletion confirmation not received"
-    logger.info(f"Received deletion confirmation: {deletion_msg.text[:100]}...")
+    # Retry logic for getting the deletion confirmation message
+    for attempt in range(3):
+        try:
+            # Verify deletion confirmation message
+            messages = await telegram_client.get_messages(bot_target, limit=5)
+            deletion_msg = next(
+                (msg for msg in messages
+                 if msg.text and ("deleted" in msg.text.lower() or "removed" in msg.text.lower())),
+                None
+            )
+            if deletion_msg is None:
+                raise AssertionError("Deletion confirmation not received")
+            logger.info(f"Received deletion confirmation: {deletion_msg.text[:100]}...")
+            break  # Exit the loop if successful
+        except AssertionError as e:
+            logger.warning(f"Attempt {attempt + 1}: Deletion confirmation not received: {e}")
+            if attempt == 2:
+                raise  # Re-raise the exception after the last attempt
+            await asyncio.sleep(5)  # Wait before retrying
     
 #########
 
