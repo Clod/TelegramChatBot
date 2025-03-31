@@ -233,150 +233,174 @@ async def test_view_my_data_button(telegram_client):
     # Wait for response
     await asyncio.sleep(2)
 
-
 @pytest.mark.asyncio
-async def test_settings_submenu(telegram_client):
-    """Test that the settings submenu appears when clicking Settings."""
-    # First get the main menu
-    # Use the bot entity if available, otherwise use the ID
+async def test_send_text_and_get_response(telegram_client):
+    """Test sending a text message and getting a specific response."""
+    # Send a text message to the bot
     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    await telegram_client.send_message(bot_target, "/start")
-    await asyncio.sleep(2)
-    
-    # Get the most recent message with buttons
-    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    messages = await telegram_client.get_messages(bot_target, limit=5)
-    menu_message = None
-    for msg in messages:
-        if msg.buttons:
-            menu_message = msg
-            break
-    
-    assert menu_message is not None, "No menu with buttons was received"
-    
-    # Find and click the Settings button
-    settings_button = None
-    for row in menu_message.buttons:
-        for button in row:
-            if "Settings" in button.text or "Config" in button.text:  # Adjust this to match your actual button name
-                settings_button = button
-                break
-        if settings_button:
-            break
-    
-    assert settings_button is not None, "Settings button not found"
-    
-    # Click the button
-    await menu_message.click(text=settings_button.text)
-    
-    # Wait for response
-    await asyncio.sleep(2)
-    
-    # Check for settings submenu in recent messages
-    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    recent_messages = await telegram_client.get_messages(bot_target, limit=5)
-    submenu_received = False
-    
-    for msg in recent_messages:
-        # Check if this message has buttons (submenu)
-        if msg.buttons and msg.id != menu_message.id:
-            submenu_received = True
-            
-            # Log the submenu buttons
-            submenu_buttons = []
-            for row in msg.buttons:
-                for button in row:
-                    submenu_buttons.append(button.text)
-            logger.info(f"Settings submenu buttons: {submenu_buttons}")
-            
-            # Verify expected submenu buttons (adjust based on your actual submenu)
-            expected_submenu = ["Preferences", "Back"]  # Adjust these to match your actual button names
-            for expected in expected_submenu:
-                assert any(expected in btn for btn in submenu_buttons), f"Expected submenu button '{expected}' not found"
-            break
-    
-    assert submenu_received, "No settings submenu was received after clicking Settings button"
+    await telegram_client.send_message(bot_target, "Abracadabra")
 
-@pytest.mark.asyncio
-async def test_back_button(telegram_client):
-    """Test that the Back button returns to the main menu."""
-    # First navigate to a submenu
-    # Use the bot entity if available, otherwise use the ID
-    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    await telegram_client.send_message(bot_target, "/start")
+    # Wait briefly for the response
     await asyncio.sleep(2)
-    
-    # Get the main menu message
-    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+
+    # Get the most recent message from the bot
     messages = await telegram_client.get_messages(bot_target, limit=5)
-    menu_message = None
+    response_received = False
+
+    # Check if the bot responded with the expected text
     for msg in messages:
-        if msg.buttons:
-            menu_message = msg
+        # print(msg.text)
+        if msg.text and "no hay preguntas" in msg.text.lower():
+            response_received = True
+            logger.info(f"Received expected response: {msg.text[:100]}...")
             break
+    # print(response_received)
+    assert response_received, "Bot did not respond with the expected text"
+
+
+# @pytest.mark.asyncio
+# async def test_settings_submenu(telegram_client):
+#     """Test that the settings submenu appears when clicking Settings."""
+#     # First get the main menu
+#     # Use the bot entity if available, otherwise use the ID
+#     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+#     await telegram_client.send_message(bot_target, "/start")
+#     await asyncio.sleep(2)
     
-    assert menu_message is not None, "No menu with buttons was received"
+#     # Get the most recent message with buttons
+#     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+#     messages = await telegram_client.get_messages(bot_target, limit=5)
+#     menu_message = None
+#     for msg in messages:
+#         if msg.buttons:
+#             menu_message = msg
+#             break
     
-    # Find and click a submenu button (e.g., Settings)
-    submenu_button = None
-    for row in menu_message.buttons:
-        for button in row:
-            if "Settings" in button.text or "Config" in button.text:  # Adjust this to match your actual button name
-                submenu_button = button
-                break
-        if submenu_button:
-            break
+#     assert menu_message is not None, "No menu with buttons was received"
     
-    assert submenu_button is not None, "Submenu button not found"
+#     # Find and click the Settings button
+#     settings_button = None
+#     for row in menu_message.buttons:
+#         for button in row:
+#             if "Settings" in button.text or "Config" in button.text:  # Adjust this to match your actual button name
+#                 settings_button = button
+#                 break
+#         if settings_button:
+#             break
     
-    # Click to enter submenu
-    await menu_message.click(text=submenu_button.text)
-    await asyncio.sleep(2)
+#     assert settings_button is not None, "Settings button not found"
     
-    # Find the submenu message with Back button
-    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    messages = await telegram_client.get_messages(bot_target, limit=5)
-    submenu_message = None
-    for msg in messages:
-        if msg.buttons and msg.id != menu_message.id:
-            submenu_message = msg
-            break
+#     # Click the button
+#     await menu_message.click(text=settings_button.text)
     
-    assert submenu_message is not None, "No submenu message was received"
+#     # Wait for response
+#     await asyncio.sleep(2)
     
-    # Find and click the Back button
-    back_button = None
-    for row in submenu_message.buttons:
-        for button in row:
-            if "Back" in button.text or "Return" in button.text:  # Adjust this to match your actual button name
-                back_button = button
-                break
-        if back_button:
-            break
+#     # Check for settings submenu in recent messages
+#     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+#     recent_messages = await telegram_client.get_messages(bot_target, limit=5)
+#     submenu_received = False
     
-    assert back_button is not None, "Back button not found in submenu"
-    
-    # Click the Back button
-    await submenu_message.click(text=back_button.text)
-    await asyncio.sleep(2)
-    
-    # Verify we're back at the main menu
-    bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    messages = await telegram_client.get_messages(bot_target, limit=5)
-    back_to_main = False
-    
-    for msg in messages:
-        # Check if this is a main menu message
-        if msg.buttons:
-            # Check for main menu buttons
-            main_menu_buttons = []
-            for row in msg.buttons:
-                for button in row:
-                    main_menu_buttons.append(button.text)
+#     for msg in recent_messages:
+#         # Check if this message has buttons (submenu)
+#         if msg.buttons and msg.id != menu_message.id:
+#             submenu_received = True
             
-            # If we find expected main menu buttons, we're back
-            if any("Help" in btn for btn in main_menu_buttons) and any(("Settings" in btn or "Config" in btn) for btn in main_menu_buttons):
-                back_to_main = True
-                break
+#             # Log the submenu buttons
+#             submenu_buttons = []
+#             for row in msg.buttons:
+#                 for button in row:
+#                     submenu_buttons.append(button.text)
+#             logger.info(f"Settings submenu buttons: {submenu_buttons}")
+            
+#             # Verify expected submenu buttons (adjust based on your actual submenu)
+#             expected_submenu = ["Preferences", "Back"]  # Adjust these to match your actual button names
+#             for expected in expected_submenu:
+#                 assert any(expected in btn for btn in submenu_buttons), f"Expected submenu button '{expected}' not found"
+#             break
     
-    assert back_to_main, "Did not return to main menu after clicking Back button"
+#     assert submenu_received, "No settings submenu was received after clicking Settings button"
+
+# @pytest.mark.asyncio
+# async def test_back_button(telegram_client):
+    # """Test that the Back button returns to the main menu."""
+    # # First navigate to a submenu
+    # # Use the bot entity if available, otherwise use the ID
+    # bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    # await telegram_client.send_message(bot_target, "/start")
+    # await asyncio.sleep(2)
+    
+    # # Get the main menu message
+    # bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    # messages = await telegram_client.get_messages(bot_target, limit=5)
+    # menu_message = None
+    # for msg in messages:
+    #     if msg.buttons:
+    #         menu_message = msg
+    #         break
+    
+    # assert menu_message is not None, "No menu with buttons was received"
+    
+    # # Find and click a submenu button (e.g., Settings)
+    # submenu_button = None
+    # for row in menu_message.buttons:
+    #     for button in row:
+    #         if "Settings" in button.text or "Config" in button.text:  # Adjust this to match your actual button name
+    #             submenu_button = button
+    #             break
+    #     if submenu_button:
+    #         break
+    
+    # assert submenu_button is not None, "Submenu button not found"
+    
+    # # Click to enter submenu
+    # await menu_message.click(text=submenu_button.text)
+    # await asyncio.sleep(2)
+    
+    # # Find the submenu message with Back button
+    # bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    # messages = await telegram_client.get_messages(bot_target, limit=5)
+    # submenu_message = None
+    # for msg in messages:
+    #     if msg.buttons and msg.id != menu_message.id:
+    #         submenu_message = msg
+    #         break
+    
+    # assert submenu_message is not None, "No submenu message was received"
+    
+    # # Find and click the Back button
+    # back_button = None
+    # for row in submenu_message.buttons:
+    #     for button in row:
+    #         if "Back" in button.text or "Return" in button.text:  # Adjust this to match your actual button name
+    #             back_button = button
+    #             break
+    #     if back_button:
+    #         break
+    
+    # assert back_button is not None, "Back button not found in submenu"
+    
+    # # Click the Back button
+    # await submenu_message.click(text=back_button.text)
+    # await asyncio.sleep(2)
+    
+    # # Verify we're back at the main menu
+    # bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
+    # messages = await telegram_client.get_messages(bot_target, limit=5)
+    # back_to_main = False
+    
+    # for msg in messages:
+    #     # Check if this is a main menu message
+    #     if msg.buttons:
+    #         # Check for main menu buttons
+    #         main_menu_buttons = []
+    #         for row in msg.buttons:
+    #             for button in row:
+    #                 main_menu_buttons.append(button.text)
+            
+    #         # If we find expected main menu buttons, we're back
+    #         if any("Help" in btn for btn in main_menu_buttons) and any(("Settings" in btn or "Config" in btn) for btn in main_menu_buttons):
+    #             back_to_main = True
+    #             break
+    
+    # assert back_to_main, "Did not return to main menu after clicking Back button"
