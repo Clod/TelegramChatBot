@@ -288,38 +288,47 @@ async def test_delete_my_data(telegram_client: TelegramClient):
 
 @pytest.mark.asyncio
 async def test_send_image_and_get_response(telegram_client):
-    """Test sending an image to the bot and verifying analysis."""
-    test_image = "images/cadorna.jpeg"
-    
+    """Test sending an image to the bot and verifying the full processing workflow."""
     # Verify image exists
-    if not os.path.exists(test_image):
-        pytest.skip(f"Test image not found at {test_image}")
+    if not os.path.exists(s.TEST_IMAGE_PATH):
+        pytest.skip(f"Test image not found at {s.TEST_IMAGE_PATH}")
 
     # Send the image
     bot_target = BOT_ENTITY if BOT_ENTITY else BOT_ID
-    await telegram_client.send_file(bot_target, test_image, caption="Test image")
+    await telegram_client.send_file(bot_target, s.TEST_IMAGE_PATH, caption=s.TEST_IMAGE_CAPTION)
 
-    # Wait longer for processing (since we're skipping the intermediate check)
-    await asyncio.sleep(15)  # Increased wait time
-
-    # Get all recent messages
-    messages = await telegram_client.get_messages(bot_target, limit=10)
-    
-    # Verify final analysis contains expected content
-    analysis_msg = next(
-        (msg for msg in messages 
-         if msg.text and ("cadorna" in msg.text.lower() or 
-                         "luigi" in msg.text.lower() or
-                         "general" in msg.text.lower())),
+    # Wait for initial processing message
+    await asyncio.sleep(5)
+    messages = await telegram_client.get_messages(bot_target, limit=5)
+    processing_msg = next(
+        (msg for msg in messages if msg.text and s.TEST_IMAGE_PROCESSING_TEXT in msg.text),
         None
     )
+    assert processing_msg, "Did not receive image processing confirmation message"
+
+    # Wait longer for final analysis
+    await asyncio.sleep(10)
+    messages = await telegram_client.get_messages(bot_target, limit=10)
     
-    assert analysis_msg, (
+    # Verify we got the extracted information header
+    analysis_msg = next(
+        (msg for msg in messages if msg.text and s.TEST_IMAGE_VALIDATION_TEXT in msg.text),
+        None
+    )
+    assert analysis_msg, "Did not receive image analysis results header"
+
+    # Verify analysis contains expected content
+    assert any(
+        s.TEST_EXPECTED_NAME in msg.text.lower() or 
+        s.TEST_EXPECTED_FIRST_NAME in msg.text.lower() or
+        s.TEST_EXPECTED_TITLE in msg.text.lower()
+        for msg in messages if msg.text
+    ), (
         "Bot did not provide analysis containing expected content. "
         f"Messages received: {[msg.text[:50] + '...' if msg.text else 'None' for msg in messages]}"
     )
     
-    logger.info(f"Received analysis: {analysis_msg.text[:200]}...")
+    logger.info(f"Image processing test completed successfully")
     
 @pytest.mark.asyncio
 async def test_view_my_data_button(telegram_client):
