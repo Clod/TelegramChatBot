@@ -136,10 +136,8 @@ def handle_start_help(message): # Renamed function
         db.log_interaction(user_id, f"command_{command}")
         prefs = db.get_user_preferences(user_id)
         user_sessions[user_id] = {'state': s.USER_STATE_MAIN_MENU, 'data': {}, 'preferences': prefs}
-        welcome_text = "Welcome to the bot! Choose an option:" # Keep default, localization can be complex
-        if prefs.get('language') == 'es':
-            welcome_text = "¡Bienvenido al bot! Elige una opción:" # Keep default, localization can be complex
-        send_main_menu_message(chat_id, welcome_text)
+        welcome_text_key = s.WELCOME_MESSAGE_DEFAULT_ES if prefs.get('language') == 'es' else s.WELCOME_MESSAGE_DEFAULT
+        send_main_menu_message(chat_id, welcome_text_key)
         logger.info(s.LOG_SENT_WELCOME_MENU.format(user_id=user_id))
     except Exception as e:
         logger.error(s.ERROR_START_HELP_FAILED.format(user_id=user_id, error=e), exc_info=True)
@@ -338,11 +336,11 @@ def handle_text(message):
         bot.reply_to(message, s.TEXT_UNKNOWN_COMMAND_USER_MSG)
         logger.info(s.LOG_SKIPPED_MENU_FOR_COMMAND.format(command=message.text, chat_id=chat_id))
     else:
-        # Not a command and not a 'dato[s]' keyword message.
-        # Trigger Gemini analysis including this new message.
-        logger.info(f"Triggering Gemini analysis for incoming text message from user {user_id}")
-        _trigger_gemini_analysis(user_id, chat_id, latest_message_text=message.text)
-        # The helper function now handles sending the result and the main menu.
+       # Not a command and not a 'dato[s]' keyword message.
+       # Trigger Gemini analysis including this new message.
+       logger.info(s.LOG_TRIGGER_GEMINI_TEXT_MSG.format(user_id=user_id))
+       _trigger_gemini_analysis(user_id, chat_id, latest_message_text=message.text)
+       # The helper function now handles sending the result and the main menu.
 
 
 # --- Callback Query Handler ---

@@ -386,6 +386,32 @@ WEBAPP_SAVE_ERROR_TRANSACTION = "Transacción fallida: {error}"
 HEALTH_CHECK_BOT_ERROR = "Error de bot en comprobación de estado: {error}"
 HEALTH_CHECK_DB_ERROR = "Error de BD en comprobación de estado: {error}"
 
+# --- Flask App Specific ---
+VALIDATE_INIT_DATA_HASH_NOT_FOUND = "Hash no encontrado en initData"
+VALIDATE_INIT_DATA_INVALID_HASH = "Hash inválido"
+VALIDATE_INIT_DATA_USER_ID_NOT_FOUND = "ID de usuario no encontrado en initData"
+FLASK_WEBHOOK_SET_SUCCESS = '¡Webhook configurado!'
+FLASK_WEBHOOK_SET_ERROR = "Error al configurar webhook: {error}"
+
+# --- Google API Specific ---
+DEBUG_GEMINI_EXTRACT_ATTEMPT = "Intentando extraer texto de la respuesta de Gemini. Tipo: {type}, Contenido: {content_preview}..."
+DEBUG_GEMINI_EXTRACT_FAIL_CONTENT = "Contenido problemático de la respuesta de Gemini: {content}"
+DEBUG_GEMINI_EXTRACT_FAIL_SNIPPET = "Fragmento de respuesta problemático: {snippet}"
+ERROR_FORM_API_UNKNOWN = "Error de API desconocido"
+ERROR_FORM_API_STATUS_FALLBACK = "Error de API (Estado: {status_code})"
+
+# --- Telegram Bot Specific ---
+WELCOME_MESSAGE_DEFAULT = "Welcome to the bot! Choose an option:" # English default
+WELCOME_MESSAGE_DEFAULT_ES = "¡Bienvenido al bot! Elige una opción:" # Spanish version
+ERROR_AI_NO_RESPONSE = "El servicio de IA no devolvió respuesta."
+LOG_TRIGGER_GEMINI_ERROR = "Error en _trigger_gemini_analysis para el usuario {user_id}: {error}"
+LOG_TRIGGER_GEMINI_RECOVERY_FAIL = "Fallo al enviar mensaje de error durante la recuperación de _trigger_gemini_analysis: {nested_error}"
+LOG_GEMINI_ANALYSIS_TRUNCATED = "Resultado largo del análisis de Gemini truncado para el usuario {user_id}"
+LOG_DATA_ENTRY_DETECTED = "Palabra clave de entrada de datos detectada. Guardando contenido: '{content_preview}...'"
+CONFIRM_DATA_ENTRY_SAVED = "Entrada de datos guardada."
+LOG_TRIGGER_GEMINI_TEXT_MSG = "Disparando análisis de Gemini para mensaje de texto entrante del usuario {user_id}"
+LOG_VIEW_DATA_UNEXPECTED_TYPE = "Tipo inesperado para message_text en view_my_data: {type}, valor: {value_repr}"
+
 # --- Main Script ---
 LOG_EFFECTIVE_UID = "UID efectivo: {uid}"
 LOG_EFFECTIVE_USER = "Usuario efectivo: {user}"

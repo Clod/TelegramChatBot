@@ -197,12 +197,12 @@ def extract_text_from_gemini_response(gemini_response):
     """
     try:
         # Log the received response for debugging before checking its type
-        logger.debug(f"Attempting to extract text from Gemini response. Type: {type(gemini_response)}, Content: {str(gemini_response)[:500]}...") # Log type and preview
+        logger.debug(s.DEBUG_GEMINI_EXTRACT_ATTEMPT.format(type=type(gemini_response), content_preview=str(gemini_response)[:500])) # Log type and preview
 
         # Allow either a dictionary or a list as the top-level response structure
         if not isinstance(gemini_response, (dict, list)):
              logger.error(s.ERROR_GEMINI_EXTRACT_UNEXPECTED_TYPE.format(type=type(gemini_response)))
-             logger.error(f"Problematic Gemini response content: {gemini_response}") # Log the full problematic response
+             logger.error(s.DEBUG_GEMINI_EXTRACT_FAIL_CONTENT.format(content=gemini_response)) # Log the full problematic response
              return s.ERROR_GEMINI_EXTRACT_INVALID_FORMAT
 
         # Initialize all_text to collect the text from all parts
@@ -258,7 +258,7 @@ def extract_text_from_gemini_response(gemini_response):
 
     except Exception as e:
         logger.error(s.ERROR_GEMINI_EXTRACTING_TEXT.format(error=str(e)), exc_info=True)
-        logger.error(f"Problematic response snippet: {str(gemini_response)[:500]}")
+        logger.error(s.DEBUG_GEMINI_EXTRACT_FAIL_SNIPPET.format(snippet=str(gemini_response)[:500]))
         return s.ERROR_GEMINI_EXTRACTING_TEXT_USER_MSG
 
 def analyze_text_with_gemini(prompt_text, user_id):
@@ -340,10 +340,10 @@ def get_google_form_response(form_id, response_id):
         error_details = error.content.decode('utf-8') # Use content instead of resp.get
         try:
              error_json = json.loads(error_details)
-             error_message = error_json.get('error', {}).get('message', 'Unknown API error')
+             error_message = error_json.get('error', {}).get('message', s.ERROR_FORM_API_UNKNOWN)
              status_code = error_json.get('error', {}).get('code', error.resp.status)
         except json.JSONDecodeError:
-             error_message = f"API Error (Status: {error.resp.status})"
+             error_message = s.ERROR_FORM_API_STATUS_FALLBACK.format(status_code=error.resp.status)
              status_code = error.resp.status
 
         logger.error(s.ERROR_FORM_API.format(status_code=status_code, error_message=error_message))

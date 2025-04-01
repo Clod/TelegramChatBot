@@ -45,10 +45,10 @@ def set_webhook():
         # Set webhook without sending certificate parameter
         bot.set_webhook(url=config.WEBHOOK_URL)
         logger.info(s.LOG_WEBHOOK_SET.format(url=config.WEBHOOK_URL))
-        return 'Webhook set!' # Keep simple message
+        return s.FLASK_WEBHOOK_SET_SUCCESS
     except Exception as e:
         logger.error(s.ERROR_WEBHOOK_SET.format(error=e), exc_info=True)
-        return f"Error setting webhook: {e}", 500 # Keep simple message
+        return s.FLASK_WEBHOOK_SET_ERROR.format(error=e), 500
 
 @app.route('/webhook_info')
 def webhook_info():
@@ -164,19 +164,19 @@ def validate_init_data(init_data_str, bot_token):
         parsed_data = parse_qs(init_data_str)
         received_hash = parsed_data.pop('hash', [None])[0]
         if not received_hash:
-            raise ValueError("Hash not found in initData")
+            raise ValueError(s.VALIDATE_INIT_DATA_HASH_NOT_FOUND)
 
         data_check_string = "\n".join(sorted([f"{k}={v[0]}" for k, v in parsed_data.items()]))
         secret_key = hmac.new("WebAppData".encode(), bot_token.encode(), hashlib.sha256).digest()
         calculated_hash = hmac.new(secret_key, data_check_string.encode(), hashlib.sha256).hexdigest()
 
         if received_hash != calculated_hash:
-            raise ValueError("Invalid hash")
+            raise ValueError(s.VALIDATE_INIT_DATA_INVALID_HASH)
 
         user_data = json.loads(parsed_data['user'][0])
         user_id = user_data.get('id')
         if not user_id:
-            raise ValueError("User ID not found in initData")
+            raise ValueError(s.VALIDATE_INIT_DATA_USER_ID_NOT_FOUND)
 
         return user_id, user_data # Return user_id and parsed user data
     except Exception as e:
