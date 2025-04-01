@@ -98,19 +98,19 @@
     </style>
 </head>
 <body>
-    <div id="loading">Loading your messages...</div>
+    <div id="loading">{{ _('WEBAPP_LOADING_MESSAGES') }}</div>
     <div id="error-message" class="hidden"></div>
-    <div id="no-messages" class="hidden">No text messages found to edit.</div>
+    <div id="no-messages" class="hidden">{{ _('WEBAPP_NO_MESSAGES') }}</div>
 
     <div id="messages-list" class="container hidden">
-        <h1>Edit Your Messages</h1>
+        <h1>{{ _('WEBAPP_EDIT_MESSAGES_TITLE') }}</h1>
         <!-- Message items will be inserted here by JavaScript -->
     </div>
 
     <!-- Placeholder for fixed buttons -->
     <div class="fixed-buttons hidden" id="button-area">
-         <button id="discard-button">Discard</button>
-         <button id="save-button">Save Changes</button>
+         <button id="discard-button">{{ _('WEBAPP_DISCARD_BUTTON') }}</button>
+         <button id="save-button">{{ _('WEBAPP_SAVE_BUTTON') }}</button>
     </div>
 
 
