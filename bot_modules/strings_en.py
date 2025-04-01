@@ -1,4 +1,3 @@
-
 # --- General ---
 ERROR_GENERIC = "An unexpected error occurred."
 ERROR_PROCESSING_REQUEST = "An error occurred processing your request."
