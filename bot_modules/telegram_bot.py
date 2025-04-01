@@ -291,7 +291,7 @@ def _trigger_gemini_analysis(user_id, chat_id, message_id_to_edit=None, latest_m
              bot.edit_message_text(final_text, chat_id, processing_message_id, reply_markup=generate_main_menu())
 
     except Exception as e:
-        logger.error(f"Error in _trigger_gemini_analysis for user {user_id}: {e}", exc_info=True)
+        logger.error(s.LOG_TRIGGER_GEMINI_ERROR.format(user_id=user_id, error=e), exc_info=True)
         try:
             # Try to edit the message to show a generic error
             error_edit_id = processing_message_id if processing_message_id else message_id_to_edit
