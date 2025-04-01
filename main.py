@@ -23,6 +23,10 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# --- Environment and Language Setup ---
+# Log the language read from the environment
+logger.info(f"Bot language set to: {BOT_LANGUAGE}")
+
 # Log effective user (optional, for debugging permissions)
 try:
     logger.info(s.LOG_EFFECTIVE_UID.format(uid=os.geteuid()))
