@@ -9,7 +9,8 @@ from bot_modules import config
 from bot_modules.database import init_db
 from bot_modules.telegram_bot import bot # Import the initialized bot instance
 from bot_modules.flask_app import app # Import the initialized Flask app
-from bot_modules import strings_en, strings_es # Import string modules
+from bot_modules import strings_en
+from bot_modules import strings_es
 
 # Set language based on environment
 BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()

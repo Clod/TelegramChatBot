@@ -1,7 +1,12 @@
 import os
 import logging
 from dotenv import load_dotenv
-from . import strings as s  # Import the strings module
+from . import strings_en
+from . import strings_es
+
+# Set language based on environment
+BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
+s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
 logger = logging.getLogger(__name__)
 
