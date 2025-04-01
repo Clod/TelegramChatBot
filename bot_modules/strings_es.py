@@ -126,6 +126,14 @@ TEXT_HISTORY_NO_PREVIOUS = "No se encontraron mensajes anteriores."
 TEXT_RECEIVED_USER_MSG = "Mensaje recibido."
 TEXT_RECEIVED_NO_HISTORY_USER_MSG = "Mensaje recibido. No se encontró historial."
 
+# --- Payment/Subscription ---
+PAYMENT_SUCCESS = "✅ Pago procesado exitosamente (ID: {txn_id})"
+PAYMENT_FAILED = "❌ Falló el pago: {error}"
+SUBSCRIPTION_ACTIVE = "Suscripción activa hasta {expiry_date}"
+SUBSCRIPTION_EXPIRED = "Suscripción expirada el {expiry_date}"
+INVOICE_GENERATED = "Factura #{invoice_number} generada"
+REFUND_PROCESSED = "Reembolso procesado por {amount}"
+
 # --- Buttons ---
 BUTTON_ANALYZE_MESSAGES = "📊 Analizar mis mensajes"
 BUTTON_RETRIEVE_FORM = "📄 Recuperar datos de formulario"
@@ -135,6 +143,20 @@ BUTTON_DELETE_DATA = "🗑️ Eliminar mis datos"
 BUTTON_BACK_MAIN_MENU = "Volver al menú principal"
 BUTTON_CONFIRM_DELETE = "✅ Sí, eliminar mis datos"
 BUTTON_CANCEL_DELETE = "❌ No, conservar mis datos"
+TOOLTIP_CLOSE = "Cerrar"
+TOOLTIP_EXPAND = "Expandir"
+PLACEHOLDER_SEARCH = "Buscar..."
+ARIA_LABEL_MENU = "Menú principal"
+STATUS_LOADING = "Cargando..."
+STATUS_SAVING = "Guardando..."
+
+# --- Admin/Moderation ---
+NOTIFICATION_ADMIN_ALERT = "⚠️ Alerta de Administrador: {message}"
+ADMIN_LOG_USER_WARNED = "Usuario {user_id} advertido por: {reason}"
+ADMIN_LOG_USER_SUSPENDED = "Usuario {user_id} suspendido hasta {date}"
+ADMIN_LOG_CONTENT_REMOVED = "Contenido eliminado (ID: {content_id}) Razón: {reason}"
+MODERATION_ACTION_CONFIRM = "Acción de moderación confirmada para usuario {user_id}"
+ERROR_MODERATION_PERMISSION = "No tienes permisos de moderación"
 
 # --- Callbacks ---
 CALLBACK_DELETE_CONFIRMATION_USER_MSG = "⚠️ ¿Seguro que quieres eliminar todos los datos? No se puede deshacer."
@@ -202,6 +224,14 @@ ERROR_CALLBACK_GENERAL = "Error manejando query de callback '{callback_data}' pa
 ERROR_CALLBACK_GENERAL_USER_MSG = "Ocurrió un error procesando tu solicitud."
 ERROR_CALLBACK_GENERAL_EDIT_MSG = "Ocurrió un error. Por favor intenta nuevamente."
 ERROR_SENDING_CALLBACK_FEEDBACK = "Error enviando feedback de error para callback '{callback_data}' al usuario {user_id}: {nested_error}"
+
+# --- Debug/Technical ---
+DEBUG_REQUEST_RECEIVED = "Solicitud recibida: {method} {endpoint}"
+DEBUG_RESPONSE_SENT = "Respuesta enviada: {status_code} en {time_ms}ms"
+DEBUG_SQL_QUERY = "Consulta SQL: {query}"
+DEBUG_CACHE_HIT = "CACHE: Hit para clave {key}"
+DEBUG_CACHE_MISS = "CACHE: Miss para clave {key}"
+TRACE_STACK_TRACE = "Traza de error:\n{stacktrace}"
 
 # --- Web App Strings ---
 WEBAPP_EDIT_MESSAGES_TITLE = "Editar Mis Mensajes"
