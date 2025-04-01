@@ -387,6 +387,32 @@ WEBAPP_SAVE_ERROR_TRANSACTION = "Transaction failed: {error}"
 HEALTH_CHECK_BOT_ERROR = "Health check bot error: {error}"
 HEALTH_CHECK_DB_ERROR = "Health check DB error: {error}"
 
+# --- Flask App Specific ---
+VALIDATE_INIT_DATA_HASH_NOT_FOUND = "Hash not found in initData"
+VALIDATE_INIT_DATA_INVALID_HASH = "Invalid hash"
+VALIDATE_INIT_DATA_USER_ID_NOT_FOUND = "User ID not found in initData"
+FLASK_WEBHOOK_SET_SUCCESS = 'Webhook set!'
+FLASK_WEBHOOK_SET_ERROR = "Error setting webhook: {error}"
+
+# --- Google API Specific ---
+DEBUG_GEMINI_EXTRACT_ATTEMPT = "Attempting to extract text from Gemini response. Type: {type}, Content: {content_preview}..."
+DEBUG_GEMINI_EXTRACT_FAIL_CONTENT = "Problematic Gemini response content: {content}"
+DEBUG_GEMINI_EXTRACT_FAIL_SNIPPET = "Problematic response snippet: {snippet}"
+ERROR_FORM_API_UNKNOWN = "Unknown API error"
+ERROR_FORM_API_STATUS_FALLBACK = "API Error (Status: {status_code})"
+
+# --- Telegram Bot Specific ---
+WELCOME_MESSAGE_DEFAULT = "Welcome to the bot! Choose an option:"
+WELCOME_MESSAGE_DEFAULT_ES = "¡Bienvenido al bot! Elige una opción:" # Spanish version
+ERROR_AI_NO_RESPONSE = "AI service returned no response."
+LOG_TRIGGER_GEMINI_ERROR = "Error in _trigger_gemini_analysis for user {user_id}: {error}"
+LOG_TRIGGER_GEMINI_RECOVERY_FAIL = "Failed to send error message during _trigger_gemini_analysis recovery: {nested_error}"
+LOG_GEMINI_ANALYSIS_TRUNCATED = "Truncated long Gemini analysis result for user {user_id}"
+LOG_DATA_ENTRY_DETECTED = "Detected data entry keyword. Saving content: '{content_preview}...'"
+CONFIRM_DATA_ENTRY_SAVED = "Data entry saved."
+LOG_TRIGGER_GEMINI_TEXT_MSG = "Triggering Gemini analysis for incoming text message from user {user_id}"
+LOG_VIEW_DATA_UNEXPECTED_TYPE = "Unexpected type for message_text in view_my_data: {type}, value: {value_repr}"
+
 # --- Main Script ---
 LOG_EFFECTIVE_UID = "Effective UID: {uid}"
 LOG_EFFECTIVE_USER = "Effective User: {user}"
