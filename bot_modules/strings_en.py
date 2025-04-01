@@ -419,4 +419,11 @@ FATAL_FLASK_OS_ERROR = "FATAL: Failed to start Flask server due to OS error: {er
 FATAL_FLASK_START_FAILED = "FATAL: Failed to start Flask server: {error}"
 
 # --- Test E2E Telethon ---
-# Excluded as requested
+TEST_IMAGE_PATH = "images/cadorna.jpeg"
+TEST_IMAGE_CAPTION = "Test image"
+TEST_EXPECTED_NAME = "cadorna"
+TEST_EXPECTED_FIRST_NAME = "luigi"
+TEST_EXPECTED_TITLE = "general"
+TEST_TEXT_QUERY = "Cómo se llama el paciente?"
+TEST_IMAGE_VALIDATION_TEXT = "Extracted Information"
+TEST_IMAGE_PROCESSING_TEXT = "Processing your image"
