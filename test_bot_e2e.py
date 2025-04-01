@@ -59,12 +59,19 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-try:
-    from bot_modules import strings_en, strings_es # Import string modules
-except ImportError as e:
-    print(f"Import error: {e}")
-    print(f"Current sys.path: {sys.path}")
-    raise
+# try:
+#     from bot_modules import strings_en, strings_es # Import string modules
+# except ImportError as e:
+#     print(f"Import error: {e}")
+#     print(f"Current sys.path: {sys.path}")
+#     raise
+
+from bot_modules import strings_en
+from bot_modules import strings_es
+
+# Set language based on environment
+BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
+s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
 # Set language based on environment
 BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()

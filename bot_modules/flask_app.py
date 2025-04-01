@@ -12,7 +12,12 @@ import hashlib # For initData validation
 from . import config
 from .telegram_bot import bot, user_sessions # Import bot instance and sessions
 from . import database as db # Import database functions
-from . import strings as s # Import strings
+from . import strings_en
+from . import strings_es
+
+# Set language based on environment
+BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
+s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
 logger = logging.getLogger(__name__)
 

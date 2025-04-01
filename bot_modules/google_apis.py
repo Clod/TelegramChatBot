@@ -9,7 +9,13 @@ from google.oauth2 import service_account
 from google.auth.transport.requests import Request as GoogleAuthRequest
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-from . import config, strings as s # Use relative import
+from . import strings_en
+from . import strings_es
+from . import config
+
+# Set language based on environment
+BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
+s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
 logger = logging.getLogger(__name__)
 
