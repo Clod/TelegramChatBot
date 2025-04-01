@@ -2,7 +2,14 @@ import sqlite3
 import json
 import logging
 import re
-from . import config, strings as s # Use relative import
+import os
+from . import config
+from . import strings_en
+from . import strings_es
+
+# Set language based on environment
+BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
+s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
 logger = logging.getLogger(__name__)
 
