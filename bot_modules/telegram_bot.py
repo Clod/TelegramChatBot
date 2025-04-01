@@ -14,9 +14,14 @@ from . import config
 from . import database as db
 from . import google_apis
 from . import utils
-from . import strings as s # Import strings
+from . import strings_es
+from . import strings_en
 
 logger = logging.getLogger(__name__)
+
+# Set language based on environment
+BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
+s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
 # Initialize bot
 bot = telebot.TeleBot(config.TOKEN)
