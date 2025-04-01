@@ -300,7 +300,7 @@ def _trigger_gemini_analysis(user_id, chat_id, message_id_to_edit=None, latest_m
             else: # If we couldn't even send the initial message
                 bot.send_message(chat_id, s.ERROR_PROCESSING_REQUEST, reply_markup=generate_main_menu())
         except Exception as nested_e:
-            logger.error(f"Failed to send error message during _trigger_gemini_analysis recovery: {nested_e}")
+            logger.error(s.LOG_TRIGGER_GEMINI_RECOVERY_FAIL.format(nested_error=nested_e))
     # No finally block needed to send menu, as edit_message_text includes it
 
 
@@ -318,11 +318,11 @@ def handle_text(message):
         # Keyword found, strip it and save as data_entry
         keyword_length = match.end() # Get the length of the matched keyword part
         data_content = message.text[keyword_length:].strip()
-        logger.info(f"Detected data entry keyword. Saving content: '{data_content[:50]}...'")
+        logger.info(s.LOG_DATA_ENTRY_DETECTED.format(content_preview=data_content[:50]))
         db.save_message(message, message_type_override=s.DB_MESSAGE_TYPE_DATA_ENTRY, text_override=data_content)
         db.log_interaction(user_id, s.DB_MESSAGE_TYPE_DATA_ENTRY, {'original_text': message.text}) # Log type and original text
         # Optionally, send a confirmation specific to data entry
-        bot.reply_to(message, "Data entry saved.") # Example confirmation
+        bot.reply_to(message, s.CONFIRM_DATA_ENTRY_SAVED) # Example confirmation
         # Decide if you want to send the main menu after data entry or not
         send_main_menu_message(chat_id) # Uncomment if you want the menu after data entry
         return # Stop further processing in this handler for data entry
@@ -449,7 +449,7 @@ def handle_callback_query(call):
                             text_preview = msg_text[:30]
                         else:
                             # Handle unexpected non-string, non-None type
-                            logger.warning(f"Unexpected type for message_text in view_my_data: {type(msg_text)}, value: {repr(msg_text)}")
+                            logger.warning(s.LOG_VIEW_DATA_UNEXPECTED_TYPE.format(type=type(msg_text), value_repr=repr(msg_text)))
                             text_preview = s.CALLBACK_DATA_SUMMARY_NO_TEXT # Use placeholder
                             ellipsis = ''
                         data_text += s.CALLBACK_DATA_SUMMARY_RECENT_MSG.format(index=i, text_preview=text_preview, ellipsis=ellipsis)
