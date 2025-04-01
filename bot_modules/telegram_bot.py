@@ -178,7 +178,7 @@ def handle_photo(message):
         gemini_response, error_msg = google_apis.process_image_with_gemini(image_path, user_id)
 
         if error_msg or not gemini_response:
-            error_text = error_msg or "AI service returned no response." # Keep default
+            error_text = error_msg or s.ERROR_AI_NO_RESPONSE # Keep default
             bot.edit_message_text(s.PHOTO_PROCESSING_FAILED_USER_MSG.format(error_text=error_text), chat_id, processing_msg.message_id)
             db.log_interaction(user_id, s.LOG_GEMINI_PROCESSING_ERROR, {'error': error_text})
             return
@@ -280,14 +280,14 @@ def _trigger_gemini_analysis(user_id, chat_id, message_id_to_edit=None, latest_m
         analysis_result, error_msg = google_apis.analyze_text_with_gemini(prompt, user_id)
 
         if error_msg or not analysis_result:
-             error_text = error_msg or "AI service returned no response." # Keep default
+             error_text = error_msg or s.ERROR_AI_NO_RESPONSE # Keep default
              bot.edit_message_text(s.CALLBACK_ANALYSIS_ERROR_USER_MSG.format(error_text=error_text), chat_id, processing_message_id, reply_markup=generate_main_menu())
         else:
              # Truncate if necessary before sending
              final_text = s.CALLBACK_ANALYSIS_RESULT_USER_MSG.format(analysis_result=analysis_result)
              if len(final_text) > 4096:
                  final_text = final_text[:4093] + "..."
-                 logger.warning(f"Truncated long Gemini analysis result for user {user_id}")
+                 logger.warning(s.LOG_GEMINI_ANALYSIS_TRUNCATED.format(user_id=user_id))
              bot.edit_message_text(final_text, chat_id, processing_message_id, reply_markup=generate_main_menu())
 
     except Exception as e:
