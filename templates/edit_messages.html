@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Edit Messages</title>
+    <title>{{ _('WEBAPP_EDIT_MESSAGES_TITLE') }}</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -126,6 +126,16 @@
         const saveButton = document.getElementById('save-button');
         const discardButton = document.getElementById('discard-button');
 
+        // Localized messages
+        const i18n = {
+            saving: "{{ _('WEBAPP_SAVING') }}",
+            saveSuccess: "{{ _('WEBAPP_SAVE_SUCCESS') }}",
+            saveError: "{{ _('WEBAPP_SAVE_ERROR') }}",
+            noChanges: "{{ _('WEBAPP_NO_CHANGES') }}",
+            authError: "{{ _('WEBAPP_AUTH_ERROR') }}",
+            networkError: "{{ _('WEBAPP_NETWORK_ERROR') }}"
+        };
+
         // Store original values to detect changes
         let originalMessages = {};
 
@@ -192,7 +202,7 @@
                  // Retry mechanism or show error after a delay
                  setTimeout(() => {
                      if (!tg || !tg.initData) {
-                        showError("Telegram initialization data not found. Please launch from Telegram.");
+                        showError(i18n.authError);
                      } else {
                          loadMessages(); // Retry if tg becomes available
                      }
@@ -258,7 +268,7 @@
             // Indicate loading/saving state
             saveButton.disabled = true;
             discardButton.disabled = true;
-            saveButton.textContent = 'Saving...';
+            saveButton.textContent = i18n.saving;
             tg.MainButton.showProgress();
 
             try {
