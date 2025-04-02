@@ -6,7 +6,6 @@ import tempfile
 import uuid
 import json
 from datetime import datetime
-import traceback
 import re # Import re for regex matching
 import time # Import time for timing checks
 
@@ -146,27 +145,56 @@ def download_image_from_telegram(file_id, user_id, message_id):
 def handle_generate_file(message):
     logger.debug(f">>> Entering handle_generate_file for chat_id: {message.chat.id}")
     chat_id = message.chat.id
-    file_name = "example.txt"
+    
+    # Extract parameters from the message text
+    command_parts = message.text.split()  # Split the message into parts
+    if len(command_parts) > 1:
+        # Log received parameters
+        for param in command_parts[1:]:
+            logger.debug(f"Received parameter: {param}")
+        file_name = utils.merge_pdfs(command_parts[1:], output_filename="entregable.pdf")
+    else:
+        logger.debug("No parameters provided.")
+        bot.reply_to(message, "No parameters provided.")
+        file_name = "pdfs/default.pdf"
+        
+    #file_name = "example.txt" 
+
+    # try:
+    #     logger.debug(f"Writing to temporary file: {file_name}")
+    #     with open(file_name, "w") as file:
+    #         file.write("Hello! This is your generated file.\n")
+    #         file.write("This is an example of a Telegram bot sending files.")
+    #     logger.debug(f"Sending document: {file_name}")
+    #     with open(file_name, "rb") as file:
+    #         bot.send_document(chat_id, file)
+    #     logger.info(s.LOG_SENT_GENERATED_FILE.format(filename=file_name, chat_id=chat_id))
+    # except Exception as e:
+    #     logger.error(s.ERROR_GENERATING_FILE.format(chat_id=chat_id, error=e), exc_info=True)
+    #     try:
+    #         logger.debug("Replying with error message.")
+    #         bot.reply_to(message, s.ERROR_GENERATING_FILE_USER_MSG)
+    #     except Exception as reply_err:
+    #          logger.error(f"Failed to send error reply in handle_generate_file: {reply_err}")
+    # #finally:
+    #     # if os.path.exists(file_name):
+    #     #     logger.debug(f"Cleaning up temporary file: {file_name}")
+    #     #     os.remove(file_name)
+    
+        # Send the document (now assuming file_name points to the correct PDF)
     try:
-        logger.debug(f"Writing to temporary file: {file_name}")
-        with open(file_name, "w") as file:
-            file.write("Hello! This is your generated file.\n")
-            file.write("This is an example of a Telegram bot sending files.")
         logger.debug(f"Sending document: {file_name}")
         with open(file_name, "rb") as file:
             bot.send_document(chat_id, file)
         logger.info(s.LOG_SENT_GENERATED_FILE.format(filename=file_name, chat_id=chat_id))
     except Exception as e:
-        logger.error(s.ERROR_GENERATING_FILE.format(chat_id=chat_id, error=e), exc_info=True)
+        logger.error(s.ERROR_SENDING_FILE.format(chat_id=chat_id, error=e), exc_info=True) # Use a more specific error message
         try:
             logger.debug("Replying with error message.")
-            bot.reply_to(message, s.ERROR_GENERATING_FILE_USER_MSG)
+            bot.reply_to(message, s.ERROR_SENDING_FILE_USER_MSG) # Use a more specific user message
         except Exception as reply_err:
              logger.error(f"Failed to send error reply in handle_generate_file: {reply_err}")
-    finally:
-        if os.path.exists(file_name):
-            logger.debug(f"Cleaning up temporary file: {file_name}")
-            os.remove(file_name)
+             
     logger.debug("<<< Exiting handle_generate_file")
 
 
