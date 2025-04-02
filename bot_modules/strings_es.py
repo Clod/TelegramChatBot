@@ -53,12 +53,12 @@ DB_ACTION_TYPE_TEXT = 'texto' # 'text'
 DB_ACTION_TYPE_PROCESSED_IMAGE = 'texto_procesado_de_imagen' # 'processed_text_from_image'
 DB_ACTION_TYPE_RETRIEVED_SHEET = 'datos_hoja_calculo_recuperados' # 'retrieved_sheet_data'
 DB_ACTION_TYPE_RETRIEVED_FORM = 'datos_formulario_recuperados' # 'retrieved_form_data'
-DB_MESSAGE_TYPE_TEXT = 'texto' # 'text'
-DB_MESSAGE_TYPE_PHOTO = 'foto' # 'photo'
-DB_MESSAGE_TYPE_PROCESSED_IMAGE = 'texto_procesado_de_imagen' # 'processed_text_from_image'
-DB_MESSAGE_TYPE_RETRIEVED_FORM = 'datos_formulario_recuperados' # 'retrieved_form_data'
-DB_MESSAGE_TYPE_RETRIEVED_SHEET = 'datos_hoja_calculo_recuperados' # 'retrieved_sheet_data'
-DB_MESSAGE_TYPE_DATA_ENTRY = 'entrada_datos' # 'data_entry' # New type for 'dato[s]' messages
+DB_MESSAGE_TYPE_TEXT = 'text'
+DB_MESSAGE_TYPE_PHOTO = 'photo'
+DB_MESSAGE_TYPE_PROCESSED_IMAGE = 'processed_text_from_image'
+DB_MESSAGE_TYPE_RETRIEVED_FORM = 'retrieved_form_data'
+DB_MESSAGE_TYPE_RETRIEVED_SHEET = 'retrieved_sheet_data'
+DB_MESSAGE_TYPE_DATA_ENTRY = 'data_entry' # New type for 'dato[s]' messages
 
 # --- Google APIs ---
 LOG_GETTING_GEMINI_CREDS = "Intentando obtener credenciales para la API Gemini..."
@@ -451,4 +451,4 @@ TEST_EXPECTED_FIRST_NAME = "luigi" # Keep as is, likely used for matching
 TEST_EXPECTED_TITLE = "general" # Keep as is, likely used for matching
 TEST_TEXT_QUERY = "¿Cómo se llama el paciente?" # Already in Spanish
 TEST_IMAGE_VALIDATION_TEXT = "Información Extraída" # "Extracted Information"
-TEST_IMAGE_PROCESSING_TEXT = "Procesando tu imagen" # "Processing your image"
+TEST_IMAGE_PROCESSING_TEXT = "Imagen de prueba" # "Processing your image"

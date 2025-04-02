@@ -38,7 +38,8 @@ Usage:
     pytest test_menu_buttons.py::test_main_menu -v
     
     # Run with auto mode for asyncio
-    pytest test_menu_buttons.py -v --asyncio-mode=auto
+    pytest test_bot_e2e.py -v --asyncio-mode=auto
+    pytest test_bot_e2e.py -v --asyncio-mode=auto -s --log-level=INFO
 
 Notes:
 - Tests use a function-scoped fixture to avoid event loop issues
@@ -73,9 +74,6 @@ from bot_modules import strings_es
 BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
 s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
-# Set language based on environment
-BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
-s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, 
@@ -88,6 +86,10 @@ telethon_logger.setLevel(logging.INFO)
 
 # Load environment variables
 load_dotenv()
+
+BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
+s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
+logger.info(f"Using language strings: {'Spanish' if BOT_LANGUAGE == 'spanish' else 'English'}")
 
 # Read credentials from environment variables
 API_ID = int(os.getenv("TELEGRAM_API_ID", "0"))
@@ -154,6 +156,7 @@ async def telegram_client():
     # Disconnect after the test
     await client.disconnect()
 
+########################################################################################################
 # % pytest test_menu_buttons.py::test_main_menu -v 
 @pytest.mark.asyncio
 async def test_main_menu(telegram_client):
@@ -194,7 +197,7 @@ async def test_main_menu(telegram_client):
         assert any(expected in btn for btn in button_texts), f"Expected button '{expected}' not found"
         
         
-#########
+########################################################################################################
 
 @pytest.mark.asyncio
 async def test_delete_my_data(telegram_client: TelegramClient):
@@ -222,7 +225,7 @@ async def test_delete_my_data(telegram_client: TelegramClient):
     # Find and click Delete My Data button
     delete_button = next(
         (btn for row in main_menu.buttons
-         for btn in row if "Delete My Data" in btn.text),
+         for btn in row if s.BUTTON_DELETE_DATA in btn.text),
         None
     )
     assert delete_button is not None, "Delete My Data button not found"
@@ -236,7 +239,7 @@ async def test_delete_my_data(telegram_client: TelegramClient):
             messages = await telegram_client.get_messages(bot_target, limit=5)
             confirm_menu = next(
                 (msg for msg in reversed(messages)
-                 if msg.buttons and any("yes" in btn.text.lower() or "no" in btn.text.lower()
+                 if msg.buttons and any("sí" in btn.text.lower() or "yes" in btn.text.lower() or "no" in btn.text.lower()
                                          for row in msg.buttons for btn in row)),
                 None
             )
@@ -252,7 +255,7 @@ async def test_delete_my_data(telegram_client: TelegramClient):
     # Find and click Yes button
     yes_button = next(
         (btn for row in confirm_menu.buttons
-         for btn in row if "yes" in btn.text.lower() or "confirm" in btn.text.lower()),
+         for btn in row if "sí" in btn.text.lower() or "yes" in btn.text.lower() or "confirm" in btn.text.lower()),
         None
     )
 
@@ -268,7 +271,7 @@ async def test_delete_my_data(telegram_client: TelegramClient):
         await confirm_menu.click(text=yes_button.text)
         await asyncio.sleep(4)
     else:
-        assert False, "No 'yes' or 'confirm' button found in confirmation menu"
+        assert False, "No 'yes' or 'sí' button found in confirmation menu"
 
     # Retry logic for getting the deletion confirmation message
     for attempt in range(3):
@@ -277,7 +280,7 @@ async def test_delete_my_data(telegram_client: TelegramClient):
             messages = await telegram_client.get_messages(bot_target, limit=5)
             deletion_msg = next(
                 (msg for msg in messages
-                 if msg.text and ("deleted" in msg.text.lower() or "removed" in msg.text.lower())),
+                 if msg.text and ("eliminados" in msg.text.lower() or "deleted" in msg.text.lower() or "removed" in msg.text.lower())),
                 None
             )
             if deletion_msg is None:
@@ -290,8 +293,7 @@ async def test_delete_my_data(telegram_client: TelegramClient):
                 raise  # Re-raise the exception after the last attempt
             await asyncio.sleep(5)  # Wait before retrying
     
-#########
-
+########################################################################################################
 
 @pytest.mark.asyncio
 async def test_send_image_and_get_response(telegram_client):
@@ -337,6 +339,8 @@ async def test_send_image_and_get_response(telegram_client):
     
     logger.info(f"Image processing test completed successfully")
     
+########################################################################################################
+    
 @pytest.mark.asyncio
 async def test_view_my_data_button(telegram_client):
     """Test clicking the View My Data button in the main menu."""
@@ -361,7 +365,7 @@ async def test_view_my_data_button(telegram_client):
     view_my_data_button = None
     for row in menu_message.buttons:
         for button in row:
-            if "View My Data" in button.text:  # Adjust this to match your actual button name
+            if s.BUTTON_VIEW_DATA in button.text:  # Adjust this to match your actual button name
                 view_my_data_button = button
                 break
         if view_my_data_button:
@@ -397,7 +401,7 @@ async def test_view_my_data_button(telegram_client):
             break
         
    # Click the "Back to Main Menu" button
-    await back_button_message.click(text="Back to Main Menu")
+    await back_button_message.click(text=s.BUTTON_BACK_MAIN_MENU)
     
     # Wait for response
     await asyncio.sleep(2)
