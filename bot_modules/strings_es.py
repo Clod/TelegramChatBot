@@ -452,3 +452,12 @@ TEST_EXPECTED_TITLE = "general" # Keep as is, likely used for matching
 TEST_TEXT_QUERY = "¿Cómo se llama el paciente?" # Already in Spanish
 TEST_IMAGE_VALIDATION_TEXT = "Información Extraída" # "Extracted Information"
 TEST_IMAGE_PROCESSING_TEXT = "Imagen de prueba" # "Processing your image"
+
+# Fusión de PDF
+LOG_PDF_MERGE_START = "Iniciando fusión de PDF para {count} archivos en {output}"
+LOG_PDF_APPEND_SUCCESS = "PDF añadido con éxito: {path}"
+ERROR_PDF_APPEND_FAILED = "Fallo al añadir PDF {path}: {error}"
+WARN_PDF_NOT_FOUND = "Archivo PDF no encontrado, omitiendo: {path}"
+WARN_PDF_MERGE_NO_FILES = "No se encontraron archivos PDF válidos para fusionar en {output}"
+LOG_PDF_MERGE_SUCCESS = "PDFs fusionados con éxito en {output}"
+ERROR_PDF_MERGE_WRITE_FAILED = "Fallo al escribir el PDF fusionado en {output}: {error}"

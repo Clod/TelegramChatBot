@@ -452,3 +452,12 @@ TEST_EXPECTED_TITLE = "general"
 TEST_TEXT_QUERY = "Cómo se llama el paciente?"
 TEST_IMAGE_VALIDATION_TEXT = "Extracted Information"
 TEST_IMAGE_PROCESSING_TEXT = "Processing your image"
+
+# PDF Merging
+LOG_PDF_MERGE_START = "Starting PDF merge for {count} files into {output}"
+LOG_PDF_APPEND_SUCCESS = "Successfully appended PDF: {path}"
+ERROR_PDF_APPEND_FAILED = "Failed to append PDF {path}: {error}"
+WARN_PDF_NOT_FOUND = "PDF file not found, skipping: {path}"
+WARN_PDF_MERGE_NO_FILES = "No valid PDF files found to merge into {output}"
+LOG_PDF_MERGE_SUCCESS = "Successfully merged PDFs into {output}"
+ERROR_PDF_MERGE_WRITE_FAILED = "Failed to write merged PDF to {output}: {error}"
