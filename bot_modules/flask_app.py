@@ -12,8 +12,11 @@ import hashlib # For initData validation
 from . import config
 from .telegram_bot import bot, user_sessions # Import bot instance and sessions
 from . import database as db # Import database functions
-from . import strings_en
-from . import strings_es
+# Remove the individual strings_en/es imports if they are only used for 's'
+# from . import strings_en
+# from . import strings_es
+# Import the configured 's' object directly
+from .config import s
 
 # Set language based on environment
 BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
@@ -193,9 +196,8 @@ def webapp_edit_messages():
     """Serve the HTML page for the message editing web app."""
     logger.info(s.LOG_SERVING_EDIT_MESSAGES_HTML)
     # Validation happens on data fetch/save, not here
-    # Assuming validate_init_data exists and is imported/defined elsewhere
-    # Assuming render_template is imported from flask
-    return render_template('edit_messages.html')
+    # Pass the strings object 's' to the template context
+    return render_template('edit_messages.html', s=s)
 
 @app.route('/webapp/get_messages', methods=['POST'])
 def webapp_get_messages():
