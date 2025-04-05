@@ -12,6 +12,8 @@ bot_users.db-journal
 
 certs/
 
+pdfs/entregable.pdf
+
 # Python 
 telegram_bot_wh                                                                                                                                                                                                                                            
 __pycache__/                                                                                                                                                                                                                                         
