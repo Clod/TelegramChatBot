@@ -159,10 +159,12 @@
             originalMessages = {}; // Reset original values store
 
             if (!messages || messages.length === 0) {
+                console.log("displayMessages: Received 0 messages. Showing 'no messages' div."); // Console log
                 loadingDiv.classList.add('hidden');
                 messagesListDiv.classList.add('hidden');
                 buttonArea.classList.add('hidden');
-                noMessagesDiv.classList.remove('hidden');
+                noMessagesDiv.classList.remove('hidden'); // Ensure this line is executing
+                console.log("displayMessages: 'no-messages' div should now be visible."); // Console log
                 saveButton.disabled = true; // Disable save if no messages
                 return;
             }
@@ -233,6 +235,8 @@
             } catch (error) {
                 console.error('Error loading messages:', error);
                 showError(error.message || 'Could not load your messages.');
+            } finally {
+                console.log("loadMessages: Fetch attempt finished."); // Add finally block log
             }
         }
 

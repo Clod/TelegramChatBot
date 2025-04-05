@@ -235,10 +235,12 @@ def webapp_get_messages():
             return jsonify({'error': s.ERROR_WEBAPP_INVALID_AUTH_DATA}), 403
 
         logger.info(s.LOG_WEBAPP_FETCHING_MESSAGES.format(user_id=user_id))
-        # Fetch recent messages with non-null/non-empty message_text
+        # Fetch recent messages
         messages = db.get_db_user_messages(user_id, limit=20) # Use DB function
-        # Filter further if needed (e.g., exclude specific types)
+        logger.debug(f"Raw messages fetched from DB for user {user_id}: {messages}") # DEBUG log raw messages
+        # Filter for messages with actual text content
         text_messages = [m for m in messages if m.get('message_text')]
+        logger.debug(f"Messages after filtering for text content for user {user_id}: {text_messages}") # DEBUG log filtered messages
         logger.info(s.LOG_WEBAPP_FETCHED_MESSAGES.format(count=len(text_messages), user_id=user_id))
         return jsonify(text_messages)
 
