@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ _('WEBAPP_EDIT_MESSAGES_TITLE') }}</title>
+    <title>{{ s.WEBAPP_EDIT_MESSAGES_TITLE }}</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -98,19 +98,19 @@
     </style>
 </head>
 <body>
-    <div id="loading">{{ _('WEBAPP_LOADING_MESSAGES') }}</div>
+    <div id="loading">{{ s.WEBAPP_LOADING_MESSAGES }}</div>
     <div id="error-message" class="hidden"></div>
-    <div id="no-messages" class="hidden">{{ _('WEBAPP_NO_MESSAGES') }}</div>
+    <div id="no-messages" class="hidden">{{ s.WEBAPP_NO_MESSAGES }}</div>
 
     <div id="messages-list" class="container hidden">
-        <h1>{{ _('WEBAPP_EDIT_MESSAGES_TITLE') }}</h1>
+        <h1>{{ s.WEBAPP_EDIT_MESSAGES_TITLE }}</h1>
         <!-- Message items will be inserted here by JavaScript -->
     </div>
 
     <!-- Placeholder for fixed buttons -->
     <div class="fixed-buttons hidden" id="button-area">
-         <button id="discard-button">{{ _('WEBAPP_DISCARD_BUTTON') }}</button>
-         <button id="save-button">{{ _('WEBAPP_SAVE_BUTTON') }}</button>
+         <button id="discard-button">{{ s.WEBAPP_DISCARD_BUTTON }}</button>
+         <button id="save-button">{{ s.WEBAPP_SAVE_BUTTON }}</button>
     </div>
 
 
@@ -126,14 +126,17 @@
         const saveButton = document.getElementById('save-button');
         const discardButton = document.getElementById('discard-button');
 
-        // Localized messages
+        // Localized messages (using the 's' object passed from Flask)
         const i18n = {
-            saving: "{{ _('WEBAPP_SAVING') }}",
-            saveSuccess: "{{ _('WEBAPP_SAVE_SUCCESS') }}",
-            saveError: "{{ _('WEBAPP_SAVE_ERROR') }}",
-            noChanges: "{{ _('WEBAPP_NO_CHANGES') }}",
-            authError: "{{ _('WEBAPP_AUTH_ERROR') }}",
-            networkError: "{{ _('WEBAPP_NETWORK_ERROR') }}"
+            saving: "{{ s.WEBAPP_SAVING }}",
+            saveSuccess: "{{ s.WEBAPP_SAVE_SUCCESS }}",
+            saveError: "{{ s.WEBAPP_SAVE_ERROR }}",
+            noChanges: "{{ s.WEBAPP_NO_CHANGES }}",
+            authError: "{{ s.WEBAPP_AUTH_ERROR }}",
+            networkError: "{{ s.WEBAPP_NETWORK_ERROR }}"
+            // Add any other strings used in JS if needed
+            // Example: If you were using _('WEBAPP_EDIT_MESSAGES_TITLE') in JS, add:
+            // editMessagesTitle: "{{ s.WEBAPP_EDIT_MESSAGES_TITLE }}"
         };
 
         // Store original values to detect changes
