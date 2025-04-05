@@ -18,9 +18,9 @@ from . import database as db # Import database functions
 # Import the configured 's' object directly
 from .config import s
 
-# Set language based on environment
-BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower()
-s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en
+# Language selection is handled in config.py where 's' is defined
+# BOT_LANGUAGE = os.getenv('BOT_LANGUAGE', 'english').lower() # This is redundant here
+# s = strings_es if BOT_LANGUAGE == 'spanish' else strings_en # This is redundant here
 
 logger = logging.getLogger(__name__)
 
