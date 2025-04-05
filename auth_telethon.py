@@ -32,12 +32,29 @@ from telethon import TelegramClient
 import os
 from dotenv import load_dotenv
 import asyncio
+import sys # Import sys for exiting
 
 load_dotenv()
-API_ID = int(os.getenv("TELEGRAM_API_ID"))
+
+# --- Environment Variable Loading and Validation ---
+required_vars = ["TELEGRAM_API_ID", "TELEGRAM_API_HASH", "TELEGRAM_PHONE"]
+missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+if missing_vars:
+    print(f"Error: Missing required environment variables: {', '.join(missing_vars)}")
+    print("Please ensure TELEGRAM_API_ID, TELEGRAM_API_HASH, and TELEGRAM_PHONE are set in your .env file.")
+    sys.exit(1) # Exit if required variables are missing
+
+try:
+    API_ID = int(os.getenv("TELEGRAM_API_ID"))
+except (ValueError, TypeError):
+    print("Error: TELEGRAM_API_ID environment variable must be a valid integer.")
+    sys.exit(1)
+
 API_HASH = os.getenv("TELEGRAM_API_HASH")
 PHONE = os.getenv("TELEGRAM_PHONE")
 BOT_USERNAME = os.getenv("TELEGRAM_BOT_USERNAME", "")
+# --- End Validation ---
 # Always add @ if it's not included in the environment variable
 if BOT_USERNAME and not BOT_USERNAME.startswith('@'):
     BOT_USERNAME = '@' + BOT_USERNAME
