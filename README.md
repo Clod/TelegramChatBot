@@ -2,7 +2,7 @@
 
 ## Overview
 
-This is a comprehensive Telegram bot application built with Python, Flask, and the PyTeleBot library. The bot features a robust architecture with user session management, SQLite database storage, and a web interface for monitoring and administration.
+This is a **comprehensive** Telegram bot application built with Python, Flask, and the PyTeleBot library. The bot features a robust architecture with user session management, SQLite database storage, and a web interface for monitoring and administration.
 
 ## Features
 

@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Planilla Nutricional Mejorada (Versión 2.0)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.5;
+            margin: 20px;
+            color: #333;
+        }
+
+        h1, h2, h3, h4 {
+            margin-top: 1.2em;
+            margin-bottom: 0.6em;
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 1.5em;
+            margin-bottom: 1em;
+        }
+
+        h2 {
+            font-size: 1.3em;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 0.2em;
+        }
+        
+        h3 {
+            font-size: 1.1em;
+            margin-top: 1em;
+        }
+
+        section {
+            margin-bottom: 1.5em;
+        }
+
+        label {
+            display: inline-block;
+            margin-right: 15px;
+            vertical-align: middle;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            border: none;
+            border-bottom: 1px solid #888;
+            padding: 2px 5px;
+            margin-left: 5px;
+            margin-right: 10px;
+            min-width: 50px; /* Ensure some minimum space */
+        }
+        
+        input[type="text"].long-input {
+             width: 80%; /* More space for name, others */
+        }
+        input[type="text"].medium-input {
+             width: 50%; 
+        }
+        input[type="text"].short-input {
+             width: 60px;
+        }
+
+
+        textarea {
+            width: 100%;
+            height: 100px;
+            border: 1px solid #888;
+            margin-top: 5px;
+            padding: 5px;
+            box-sizing: border-box; /* Include padding and border in element's total width and height */
+        }
+
+        .form-group {
+            margin-bottom: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center; /* Align items vertically */
+        }
+        
+        .form-group > label:first-child {
+             min-width: 80px; /* Give labels some space */
+             margin-right: 5px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap; /* Allow items to wrap to next line */
+            gap: 5px 20px; /* Vertical and horizontal gap */
+            margin-bottom: 15px;
+        }
+
+        .checkbox-item {
+            display: flex; /* Align checkbox and label */
+            align-items: center;
+            margin-bottom: 8px; /* Space between items vertically */
+            min-width: 180px; /* Minimum width before wrapping */
+            flex-grow: 1; /* Allow items to grow */
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            /* Hide the default checkbox */
+            opacity: 0;
+            position: absolute;
+            width: 0;
+            height: 0;
+        }
+
+        .checkbox-item label {
+            position: relative;
+            padding-left: 28px; /* Space for the custom box */
+            cursor: pointer;
+            user-select: none; /* Prevent text selection on click */
+            display: inline-flex; /* Align label text nicely */
+            align-items: center;
+            min-height: 22px; /* Ensure label height matches box */
+            margin-right: 0; /* Remove default label margin */
+        }
+
+        /* Create the custom checkbox box */
+        .checkbox-item label::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;  /* LARGE checkbox width */
+            height: 20px; /* LARGE checkbox height */
+            border: 1px solid #555;
+            background-color: #fff;
+            box-sizing: border-box; /* Include border in size */
+        }
+
+        /* Style for when the hidden checkbox is checked (optional for print, but good practice) */
+        /* .checkbox-item input[type="checkbox"]:checked + label::after {
+            content: '✔'; /* Checkmark or other indicator */
+            /* position: absolute;
+            left: 4px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 18px;
+            color: #333;
+        } */
+        
+        .inline-group label, .inline-group input {
+            margin-right: 10px; /* Space out inline elements */
+        }
+
+        .section-note {
+            font-style: italic;
+            color: #555;
+            margin-bottom: 10px;
+            display: block; /* Ensure it takes its own line */
+        }
+
+        .category-title {
+            font-weight: bold;
+            margin-top: 15px;
+            margin-bottom: 5px;
+            display: block; /* Ensure it's on its own line */
+        }
+        
+        .other-input-group {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        .other-input-group input[type="text"]{
+            flex-grow: 1; /* Allow text input to take remaining space */
+            min-width: 200px; /* Minimum width */
+        }
+
+        /* Print-specific styles (optional but helpful) */
+        @media print {
+            body {
+                margin: 10mm; /* Reduce margins for printing */
+                font-size: 10pt; /* Adjust font size if needed */
+            }
+            h1 { font-size: 14pt; }
+            h2 { font-size: 12pt; }
+            h3 { font-size: 11pt; }
+            input[type="text"], input[type="number"], textarea {
+                border-color: #000; /* Ensure borders print clearly */
+            }
+            .checkbox-item label::before {
+                border: 1.5px solid #000; /* Make checkbox border thicker for print */
+            }
+            /* Avoid page breaks inside logical groups */
+            .form-group, .checkbox-group, .checkbox-item, section, h2, h3 {
+                 page-break-inside: avoid;
+            }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Planilla Nutricional Mejorada (Versión 2.0)</h1>
+
+    <section>
+        <h2>1. Datos Básicos</h2>
+        <span class="section-note">(Sin cambios, pero con más espacio para escribir)</span>
+        <div class="form-group">
+            <label for="nombre">Nombre:</label>
+            <input type="text" id="nombre" name="nombre" class="long-input">
+        </div>
+        <div class="form-group inline-group">
+            <label for="edad">Edad:</label>
+            <input type="number" id="edad" name="edad" class="short-input"> años
+            <span style="margin-left: 20px;">Sexo:</span>
+            <div class="checkbox-item" style="min-width: auto; margin-bottom: 0;">
+                <input type="radio" id="sexo_h" name="sexo" value="Hombre"><label for="sexo_h">Hombre</label>
+            </div>
+            <div class="checkbox-item" style="min-width: auto; margin-bottom: 0;">
+                <input type="radio" id="sexo_m" name="sexo" value="Mujer"><label for="sexo_m">Mujer</label>
+            </div>
+             <div class="checkbox-item" style="min-width: auto; margin-bottom: 0;">
+                <input type="radio" id="sexo_o" name="sexo" value="Otro"><label for="sexo_o">Otro</label>
+            </div>
+        </div>
+        <div class="form-group inline-group">
+            <label for="peso">Peso:</label>
+            <input type="number" id="peso" name="peso" step="0.1" class="short-input"> kg |
+            <label for="talla" style="margin-left: 10px;">Talla:</label>
+            <input type="number" id="talla" name="talla" class="short-input"> cm |
+            <label for="imc" style="margin-left: 10px;">IMC:</label>
+            <input type="number" id="imc" name="imc" step="0.1" class="short-input"> (opcional)
+        </div>
+    </section>
+
+    <section>
+        <h2>2. Antecedentes Patológicos y Alergias/Intolerancias</h2>
+         <span class="section-note">(Ahora con más opciones y espacio para alergias)</span>
+        
+        <h3>Antecedentes Patológicos:</h3>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="diabetes" name="patologia_diabetes"><label for="diabetes">Diabetes</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="hipertension" name="patologia_hipertension"><label for="hipertension">Hipertensión</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="dislipidemia" name="patologia_dislipidemia"><label for="dislipidemia">Dislipidemia</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="obesidad" name="patologia_obesidad"><label for="obesidad">Obesidad</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="renal" name="patologia_renal"><label for="renal">Enfermedad renal</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="cardiopatia" name="patologia_cardiopatia"><label for="cardiopatia">Cardiopatía</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="celiaquia" name="patologia_celiaquia"><label for="celiaquia">Celiaquía</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="higado_graso" name="patologia_higado_graso"><label for="higado_graso">Hígado graso</label></div>
+        </div>
+
+        <h3>Alergias e Intolerancias Alimentarias</h3>
+        <span class="section-note">(Marque todas las que apliquen)</span>
+        
+        <span class="category-title">Alergias (respuesta inmunológica):</span>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="alergia_lacteos" name="alergia_lacteos"><label for="alergia_lacteos">Lácteos (Leche, queso, yogur)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="alergia_huevo" name="alergia_huevo"><label for="alergia_huevo">Huevo</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="alergia_pescado" name="alergia_pescado"><label for="alergia_pescado">Pescado/mariscos</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="alergia_frutos_secos" name="alergia_frutos_secos"><label for="alergia_frutos_secos">Maní/frutos secos (nueces, almendras, avellanas)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="alergia_trigo" name="alergia_trigo"><label for="alergia_trigo">Trigo (por gluten o alergia al trigo específica)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="alergia_soja" name="alergia_soja"><label for="alergia_soja">Soja</label></div>
+             <div class="checkbox-item other-input-group" style="min-width: 100%;">
+                <input type="checkbox" id="alergia_otros_check" name="alergia_otros_check"><label for="alergia_otros_check">Otros:</label>
+                <input type="text" id="alergia_otros_text" name="alergia_otros_text" class="medium-input">
+            </div>
+        </div>
+
+        <span class="category-title">Intolerancias (síntomas digestivos, no inmunológicos):</span>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="intol_lactosa" name="intol_lactosa"><label for="intol_lactosa">Lactosa (azúcar de la leche)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="intol_gluten" name="intol_gluten"><label for="intol_gluten">Gluten (sin celiaquía, pero con malestar)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="intol_fodmaps" name="intol_fodmaps"><label for="intol_fodmaps">FODMAPs (hinchazón por ajo, cebolla, legumbres, etc.)</label></div>
+             <div class="checkbox-item other-input-group" style="min-width: 100%;">
+                <input type="checkbox" id="intol_otros_check" name="intol_otros_check"><label for="intol_otros_check">Otros:</label>
+                <input type="text" id="intol_otros_text" name="intol_otros_text" class="medium-input">
+            </div>
+        </div>
+        
+        <span class="category-title">Reacciones graves (anafilaxia):</span>
+         <div class="checkbox-group">
+            <div class="checkbox-item" style="min-width: 100%;">
+                 <input type="checkbox" id="anafilaxia_previa" name="anafilaxia_previa"><label for="anafilaxia_previa">Episodio previo de anafilaxia (requiere adrenalina)</label>
+            </div>
+            <div class="form-group" style="width: 100%;">
+                <label for="anafilaxia_causa">Alimento causante:</label>
+                <input type="text" id="anafilaxia_causa" name="anafilaxia_causa" class="medium-input">
+            </div>
+             <div class="checkbox-item other-input-group" style="min-width: 100%;">
+                <input type="checkbox" id="anafilaxia_otros_check" name="anafilaxia_otros_check"><label for="anafilaxia_otros_check">Otras reacciones graves:</label>
+                <input type="text" id="anafilaxia_otros_text" name="anafilaxia_otros_text" class="medium-input">
+            </div>
+        </div>
+    </section>
+
+    <section>
+        <h2>3. Medicación Habitual</h2>
+        <span class="section-note">(Lista ampliada y organizada por categorías)</span>
+
+        <h3>Hipertensión/Corazón:</h3>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="med_enalapril" name="med_enalapril"><label for="med_enalapril">Enalapril</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_carvedilol" name="med_carvedilol"><label for="med_carvedilol">Carvedilol</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_atenolol" name="med_atenolol"><label for="med_atenolol">Atenolol</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_losartan" name="med_losartan"><label for="med_losartan">Losartan</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_furosemida" name="med_furosemida"><label for="med_furosemida">Furosemida</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_hidrocloro" name="med_hidrocloro"><label for="med_hidrocloro">Hidroclorotiazida</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_espirono" name="med_espirono"><label for="med_espirono">Espironolactona</label></div>
+        </div>
+
+        <h3>Diabetes:</h3>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="med_metformina" name="med_metformina"><label for="med_metformina">Metformina</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_ins_nph" name="med_ins_nph"><label for="med_ins_nph">Insulina NPH</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_ins_corr" name="med_ins_corr"><label for="med_ins_corr">Insulina Corriente</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_ins_glarg" name="med_ins_glarg"><label for="med_ins_glarg">Insulina Glargina</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_ins_aspart" name="med_ins_aspart"><label for="med_ins_aspart">Insulina Aspártica</label></div>
+        </div>
+
+        <h3>Colesterol:</h3>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="med_atorva" name="med_atorva"><label for="med_atorva">Atorvastatina</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_simva" name="med_simva"><label for="med_simva">Simvastatina</label></div>
+        </div>
+        
+        <h3>Otros Medicamentos Comunes:</h3>
+         <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="med_aspirina" name="med_aspirina"><label for="med_aspirina">Aspirina</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_tamsu" name="med_tamsu"><label for="med_tamsu">Tamsulosina</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_terazo" name="med_terazo"><label for="med_terazo">Terazosina</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="med_omepra" name="med_omepra"><label for="med_omepra">Omeprazol</label></div>
+        </div>
+
+        <h3>Otros Medicamentos (No listados):</h3>
+         <div class="checkbox-item other-input-group" style="min-width: 100%;">
+            <input type="checkbox" id="med_otros_check" name="med_otros_check"><label for="med_otros_check">Otros:</label>
+            <input type="text" id="med_otros_text" name="med_otros_text" class="long-input">
+        </div>
+    </section>
+
+    <section>
+        <h2>4. Hábitos Alimentarios Detallados</h2>
+        <span class="section-note">(Nuevas secciones)</span>
+
+        <h3>Frecuencia de consumo semanal:</h3>
+        
+        <span class="category-title">Fibra:</span>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="fibra_verduras" name="fibra_verduras"><label for="fibra_verduras">Verduras (≥5 veces/semana)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="fibra_frutas" name="fibra_frutas"><label for="fibra_frutas">Frutas (≥4 veces/semana)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="fibra_legumbres" name="fibra_legumbres"><label for="fibra_legumbres">Legumbres (≥2 veces/semana)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="fibra_cereales" name="fibra_cereales"><label for="fibra_cereales">Cereales integrales (pan/arroz/avena)</label></div>
+            <div class="checkbox-item" style="margin-top: 10px; min-width: 100%;"><input type="checkbox" id="fibra_baja" name="fibra_baja"><label for="fibra_baja"><b>Bajo consumo de fibra</b> (marca si come pocos de los anteriores)</label></div>
+        </div>
+
+        <span class="category-title">Ultraprocesados:</span>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="ultra_snacks" name="ultra_snacks"><label for="ultra_snacks">Snacks (papas fritas, galletas saladas)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="ultra_embutidos" name="ultra_embutidos"><label for="ultra_embutidos">Embutidos (salchichas, fiambres)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="ultra_bebidas" name="ultra_bebidas"><label for="ultra_bebidas">Bebidas azucaradas (gaseosas, jugos en caja)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="ultra_rapidas" name="ultra_rapidas"><label for="ultra_rapidas">Comidas rápidas (pizza, hamburguesas)</label></div>
+             <div class="checkbox-item" style="margin-top: 10px; min-width: 100%;"><input type="checkbox" id="ultra_diario" name="ultra_diario"><label for="ultra_diario"><b>Consumo diario</b> de alguno de estos</label></div>
+        </div>
+
+        <h3>Agua:</h3>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="agua_menos1" name="agua_consumo" value="<1L"><label for="agua_menos1">Bebe <1L al día</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="agua_1a2" name="agua_consumo" value="1-2L"><label for="agua_1a2">1-2L</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="agua_mas2" name="agua_consumo" value=">2L"><label for="agua_mas2">>2L</label></div>
+        </div>
+    </section>
+
+    <section>
+        <h2>5. Síntomas/Dificultades</h2>
+         <span class="section-note">(Ampliado)</span>
+        <div class="checkbox-group">
+            <div class="checkbox-item"><input type="checkbox" id="sint_masticar" name="sint_masticar"><label for="sint_masticar">Dificultad para masticar/tragar</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="sint_acidez" name="sint_acidez"><label for="sint_acidez">Acidez/reflujo</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="sint_hinchazon" name="sint_hinchazon"><label for="sint_hinchazon">Hinchazón después de comer</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="sint_estrenimiento" name="sint_estrenimiento"><label for="sint_estrenimiento">Estreñimiento (<3 deposiciones/semana)</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="sint_diarrea" name="sint_diarrea"><label for="sint_diarrea">Diarrea frecuente</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="sint_perdida_peso" name="sint_perdida_peso"><label for="sint_perdida_peso">Pérdida de peso no intencional</label></div>
+            <div class="checkbox-item"><input type="checkbox" id="sint_fatiga" name="sint_fatiga"><label for="sint_fatiga">Fatiga constante</label></div>
+        </div>
+    </section>
+
+    <section>
+        <h2>6. Observaciones</h2>
+        <textarea id="observaciones" name="observaciones" rows="6"></textarea>
+    </section>
+
+</body>
+</html>

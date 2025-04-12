@@ -37,11 +37,11 @@ Before running:
 2. Run auth_telethon.py to authenticate with Telegram
 3. Ensure the bot is running and accessible
 
-PYTHONPATH=$PYTHONPATH:. pytest test_bot_e2e.py -v
+pytest test_bot_e2e.py -v
 
 Usage:
     # Run all tests
-    pytest test_menu_buttons.py -v
+    pytest test_bot_e2e.py -v
     
     # Run a specific test
     pytest test_menu_buttons.py::test_main_menu -v
@@ -56,6 +56,15 @@ Notes:
 - Tests will be skipped if required credentials are missing
 - Increase sleep durations if your bot has slow response times
 """
+import sys                                                                                                               
+import os                                                                                                                
+print("\n--- Pytest sys.path diagnostic ---")                                                                            
+print("Current Working Directory (from test file):", os.getcwd())                                                        
+print("sys.path contents:")                                                                                              
+for i, p in enumerate(sys.path):                                                                                         
+    print(f"  {i}: {p}")                                                                                                 
+print("--- End diagnostic ---\n")  
+
 import asyncio
 import os
 import pytest
@@ -75,6 +84,7 @@ import os
 #     print(f"Import error: {e}")
 #     print(f"Current sys.path: {sys.path}")
 #     raise
+
 
 from bot_modules import strings_en
 from bot_modules import strings_es
