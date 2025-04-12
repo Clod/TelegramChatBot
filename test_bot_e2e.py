@@ -1,3 +1,12 @@
+import sys
+import os
+print("\n--- Pytest sys.path diagnostic ---")
+print("Current Working Directory (from test file):", os.getcwd())
+print("sys.path contents:")
+for i, p in enumerate(sys.path):
+    print(f"  {i}: {p}")
+print("--- End diagnostic ---\n")
+
 """
 Telegram Bot Menu Button Tests
 
