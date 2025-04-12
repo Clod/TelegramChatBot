@@ -58,7 +58,7 @@ import logging
 from telethon.types import PeerUser
 import sys
 import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # try:
 #     from bot_modules import strings_en, strings_es # Import string modules
