@@ -322,7 +322,11 @@ def get_google_form_response(form_id, response_id):
     logger.info(s.LOG_FORM_RETRIEVAL_INITIATED.format(response_id=response_id, form_id=form_id))
 
     # Get credentials for Google Forms API
-    forms_scope = [s.API_SCOPE_FORMS_READONLY]
+    forms_scope = [
+        s.API_SCOPE_FORMS_READONLY,
+        "https://www.googleapis.com/auth/forms.body.readonly",
+        "https://www.googleapis.com/auth/drive.readonly"
+    ]
     credentials = get_credentials_for_google_apis(scopes=forms_scope)
 
     if not credentials:
@@ -359,6 +363,50 @@ def get_google_form_response(form_id, response_id):
         return None, user_error
     except Exception as e:
         logger.error(s.ERROR_FORM_UNEXPECTED.format(error=e), exc_info=True)
+        return None, s.ERROR_GENERIC
+
+# --- Google Forms by patient_id ---
+def get_google_form_response_by_patient_id(form_id, patient_id):
+    """
+    Retrieves the first Google Form response where the answer to the question
+    named "patient_id" matches the provided patient_id.
+    Returns: Tuple (response JSON dict or None, error message or None)
+    """
+    logger.info(s.LOG_FORM_RETRIEVAL_INITIATED.format(response_id="by_patient_id", form_id=form_id))
+    forms_scope = [
+        s.API_SCOPE_FORMS_READONLY,
+        "https://www.googleapis.com/auth/forms.body.readonly",
+        "https://www.googleapis.com/auth/drive.readonly"
+    ]
+    credentials = get_credentials_for_google_apis(scopes=forms_scope)
+    if not credentials:
+        logger.error(s.ERROR_FORM_AUTH_FAILED)
+        return None, s.ERROR_FORM_AUTH_FAILED_MSG
+    try:
+        service = build('forms', 'v1', credentials=credentials)
+        # Generic scan of all answers for patient_id
+        responses = service.forms().responses().list(formId=form_id).execute().get('responses', [])
+        for resp in responses:
+            for ans in resp.get("answers", {}).values():
+                for txt in ans.get("textAnswers", {}).get("answers", []):
+                    if txt.get('value') == patient_id:
+                        logger.info("Matching response found for patient_id %s", patient_id)
+                        return resp, None
+        return None, f"No response found for patient_id {patient_id}"
+    except HttpError as e:
+        error_details = e.content.decode('utf-8')
+        try:
+            ej = json.loads(error_details)
+            msg = ej.get('error', {}).get('message', s.ERROR_FORM_API_UNKNOWN)
+            code = ej.get('error', {}).get('code', e.resp.status)
+        except json.JSONDecodeError:
+            msg = s.ERROR_FORM_API_STATUS_FALLBACK.format(status_code=e.resp.status)
+            code = e.resp.status
+        logger.error(s.ERROR_FORM_API.format(status_code=code, error_message=msg))
+        user_error = s.ERROR_FORM_API_USER_MSG.format(status_code=code, error_message=msg)
+        return None, user_error
+    except Exception as ex:
+        logger.error(s.ERROR_FORM_UNEXPECTED.format(error=ex), exc_info=True)
         return None, s.ERROR_GENERIC
 
 # --- Google Apps Script ---
