@@ -560,3 +560,57 @@ def get_sheet_data_via_webapp(id_to_find):
     except Exception as e:
         logger.error(s.ERROR_WEB_APP_UNEXPECTED.format(error=e), exc_info=True)
         return None, s.WEB_APP_UNEXPECTED_USER_MSG
+
+def get_question_id_title_map(form_id):
+    """Retrieves mapping of question IDs to question titles for a Google Form."""
+    logger.info(f"Retrieving form structure for form {form_id}")
+    forms_scope = [
+        s.API_SCOPE_FORMS_READONLY,
+        "https://www.googleapis.com/auth/forms.body.readonly",
+        "https://www.googleapis.com/auth/drive.readonly"
+    ]
+    credentials = get_credentials_for_google_apis(scopes=forms_scope)
+    if not credentials:
+        logger.error(s.ERROR_FORM_AUTH_FAILED)
+        return None, s.ERROR_FORM_AUTH_FAILED_MSG
+    try:
+        service = build('forms', 'v1', credentials=credentials)
+        form = service.forms().get(formId=form_id).execute()
+        mapping = {}
+        for item in form.get('items', []):
+            question_item = item.get('questionItem')
+            if not question_item:
+                continue
+            question = question_item.get('question', {})
+            qid = question.get('questionId')
+            title = question.get('title') or item.get('title')
+            if qid and title:
+                mapping[qid] = title
+        return mapping, None
+    except HttpError as error:
+        error_details = error.content.decode('utf-8')
+        try:
+            error_json = json.loads(error_details)
+            error_message = error_json.get('error', {}).get('message', s.ERROR_FORM_API_UNKNOWN)
+            status_code = error_json.get('error', {}).get('code', error.resp.status)
+        except json.JSONDecodeError:
+            error_message = s.ERROR_FORM_API_STATUS_FALLBACK.format(status_code=error.resp.status)
+            status_code = error.resp.status
+        logger.error(s.ERROR_FORM_API.format(status_code=status_code, error_message=error_message))
+        user_error = s.ERROR_FORM_API_USER_MSG.format(status_code=status_code, error_message=error_message)
+        return None, user_error
+    except Exception as ex:
+        logger.error(f"Unexpected error getting question map for form {form_id}: {ex}", exc_info=True)
+        return None, s.ERROR_GENERIC
+
+def generate_question_id_title_json(form_id):
+    """Generate JSON string mapping questionId to title for a Google Form."""
+    mapping, error = get_question_id_title_map(form_id)
+    if error:
+        return None, error
+    try:
+        json_str = json.dumps(mapping)
+        return json_str, None
+    except Exception as e:
+        logger.error(f"Error serializing mapping to JSON: {e}", exc_info=True)
+        return None, str(e)

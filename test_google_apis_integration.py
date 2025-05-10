@@ -43,3 +43,24 @@ def test_real_form_response_by_patient_id():
         for ans_data in answers.values()
     )
     assert found, f"No answer matching patient_id={patient_id} in response"
+
+@pytest.mark.skipif(
+    not os.getenv("GOOGLE_FORM_ID"),
+    reason="Integration test requires GOOGLE_FORM_ID environment variable"
+)
+def test_get_question_id_title_map():
+    """
+    Integration test: retrieve question id to title mapping for a Google Form.
+    Requires environment variable:
+      - GOOGLE_FORM_ID: the Form ID to query
+    """
+    form_id = os.getenv("GOOGLE_FORM_ID")
+    mapping, error = api.get_question_id_title_map(form_id)
+    logging.info(f"Retrieved question id title map for form_id={form_id}: {mapping}, error={error}")
+    assert error is None, f"Expected no error, got: {error}"
+    assert isinstance(mapping, dict), "Expected a dict mapping"
+    assert mapping, "Expected at least one question in mapping"
+    # Verify keys and values are strings
+    for qid, title in mapping.items():
+        assert isinstance(qid, str), f"Expected question id to be a string, got {type(qid)}"
+        assert isinstance(title, str), f"Expected title to be a string, got {type(title)}"
