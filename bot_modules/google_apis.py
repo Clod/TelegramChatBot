@@ -391,7 +391,18 @@ def get_google_form_response_by_patient_id(form_id, patient_id):
                 for txt in ans.get("textAnswers", {}).get("answers", []):
                     if txt.get('value') == patient_id:
                         logger.info("Matching response found for patient_id %s", patient_id)
-                        return resp, None
+                        # Build title-to-answer mapping
+                        qid_title_map, map_error = get_question_id_title_map(form_id)
+                        if map_error:
+                            return None, map_error
+                        title_answer_map = {}
+                        for qid, ans_data in resp.get("answers", {}).items():
+                            answers = ans_data.get("textAnswers", {}).get("answers", [])
+                            answer_value = answers[0].get("value") if answers else None
+                            title = qid_title_map.get(qid)
+                            if title:
+                                title_answer_map[title] = answer_value
+                        return title_answer_map, None
         return None, f"No response found for patient_id {patient_id}"
     except HttpError as e:
         error_details = e.content.decode('utf-8')

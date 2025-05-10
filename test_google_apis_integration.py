@@ -1,11 +1,44 @@
+"""
+test_google_apis_integration.py
+
+Integration tests for Google APIs integration in the telegram_bot_webhook project.
+
+This script contains two pytest integration tests:
+
+1. test_real_form_response_by_patient_id:
+   - Fetches a real Google Form response by patient ID.
+   - Requires environment variables:
+     - GOOGLE_FORM_ID: the ID of the Google Form to query.
+     - GOOGLE_PATIENT_ID: the patient ID to filter responses.
+     - SERVICE_ACCOUNT_FILE: the path to the JSON file for Google service account credentials.
+   - Usage:
+         export GOOGLE_FORM_ID=<your_form_id>
+         export GOOGLE_PATIENT_ID=<your_patient_id>
+         export SERVICE_ACCOUNT_FILE=<path_to_service_account_json>
+         pytest test_google_apis_integration.py::test_real_form_response_by_patient_id -q
+
+2. test_get_question_id_title_map:
+   - Retrieves the mapping of question IDs to titles for a Google Form.
+   - Requires environment variable:
+     - GOOGLE_FORM_ID: the ID of the Google Form.
+   - Usage:
+         export GOOGLE_FORM_ID=<your_form_id>
+         pytest test_google_apis_integration.py::test_get_question_id_title_map -q
+
+To run all tests in this file:
+    pytest test_google_apis_integration.py -q
+
+"""
+
 import os
 import pytest
 import bot_modules.google_apis as api
 import logging
 
+# pytest test_google_apis_integration.py -q
 
 os.environ["GOOGLE_FORM_ID"] = "1DNf2FmTmF48Vj5F4MUR6IF6GE85WS4sEoZlN4laONtk"
-os.environ["GOOGLE_PATIENT_ID"] = "123456"
+os.environ["GOOGLE_PATIENT_ID"] = "1234"
 
 @pytest.mark.skipif(
     not os.getenv("GOOGLE_FORM_ID") or not os.getenv("GOOGLE_PATIENT_ID"),
@@ -33,16 +66,9 @@ def test_real_form_response_by_patient_id():
     # Validate the call succeeded
     assert error is None, f"Expected no error, got: {error}"
     assert isinstance(result, dict), "Expected a dict result"
-    # Verify the returned response contains answers with a matching patient_id
-    answers = result.get("answers", {})
-    # There should be at least one answer segment
-    assert answers, "No answers field in result"
-    # Extract any answer value and assert it matches requested patient_id
-    found = any(
-        ans_data.get("textAnswers", {}).get("answers", [{}])[0].get("value") == patient_id
-        for ans_data in answers.values()
-    )
-    assert found, f"No answer matching patient_id={patient_id} in response"
+    # Verify that the returned mapping contains the patient_id value
+    found = any(value == patient_id for value in result.values())
+    assert found, f"No answer matching patient_id={patient_id} in result mapping"
 
 @pytest.mark.skipif(
     not os.getenv("GOOGLE_FORM_ID"),
